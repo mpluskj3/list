@@ -5,7 +5,9 @@ window.appState = {
     userName: localStorage.getItem('userName') || null,
     congregationName: localStorage.getItem('congregationName') || 'MplusKJ'
 };
+// 초기 title은 localStorage 캐시로 즉시 설정 (DB 로드 후 setupNavigationButtons에서 최신값으로 갱신됨)
 document.title = window.appState.congregationName + " 집회계획표";
+
 
 const urlParams = new URLSearchParams(window.location.search);
 const sheetParam = urlParams.get('sheet') || urlParams.get('tab');

@@ -942,11 +942,12 @@ async function saveNavLinks() {
         const fontManager = document.getElementById('font-manager-select').value;
         const fontPrint = document.getElementById('font-print-select').value;
 
+        const now = new Date().toISOString();
         const settingsUpserts = [
-            { key: 'congregation_name', value: congName, updated_at: new Date() },
-            { key: 'font_viewer', value: fontViewer, updated_at: new Date() },
-            { key: 'font_manager', value: fontManager, updated_at: new Date() },
-            { key: 'font_print', value: fontPrint, updated_at: new Date() }
+            { key: 'congregation_name', value: congName, updated_at: now },
+            { key: 'font_viewer', value: fontViewer, updated_at: now },
+            { key: 'font_manager', value: fontManager, updated_at: now },
+            { key: 'font_print', value: fontPrint, updated_at: now }
         ];
 
         const { error: settingsErr } = await supabaseClient
@@ -954,6 +955,9 @@ async function saveNavLinks() {
             .upsert(settingsUpserts);
 
         if (settingsErr) throw settingsErr;
+
+        // 뷰어 페이지의 localStorage 캐시도 즉시 업데이트 (다음 로딩 시 최신값 반영)
+        localStorage.setItem('congregationName', congName);
 
         // Instantly apply Manager Font to body
         ensureFontLoaded(fontManager);
