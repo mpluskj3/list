@@ -1515,7 +1515,16 @@ async function saveWeekendData() {
             deletedWeekendIds = [];
         }
 
-        const toInsert = weekendData.filter(d => !d.id).map(d => ({
+        // Filter out rows without a valid meeting_date (prevents 400 on DATE NOT NULL)
+        const validNewRows = weekendData.filter(d => !d.id && d.meeting_date && d.meeting_date.trim() !== '');
+        const validExistingRows = weekendData.filter(d => d.id && d.meeting_date && d.meeting_date.trim() !== '');
+        const skippedCount = weekendData.filter(d => !d.meeting_date || d.meeting_date.trim() === '').length;
+
+        if (skippedCount > 0) {
+            if (!confirm(`날짜가 입력되지 않은 행 ${skippedCount}개는 저장에서 제외됩니다.\n계속 저장하시겠습니까?`)) return;
+        }
+
+        const toInsert = validNewRows.map(d => ({
             meeting_date: d.meeting_date,
             outline_no: d.outline_no || null,
             topic: d.topic || null,
@@ -1529,7 +1538,7 @@ async function saveWeekendData() {
             prayer: d.prayer || null
         }));
 
-        const toUpdate = weekendData.filter(d => d.id).map(d => ({
+        const toUpdate = validExistingRows.map(d => ({
             id: d.id,
             meeting_date: d.meeting_date,
             outline_no: d.outline_no || null,
@@ -1548,11 +1557,17 @@ async function saveWeekendData() {
             const { error } = await supabaseClient
                 .from('public_talks')
                 .upsert(toInsert, { onConflict: 'meeting_date', ignoreDuplicates: false });
-            if (error) throw error;
+            if (error) {
+                console.error('[saveWeekendData] Insert error:', JSON.stringify(error));
+                throw error;
+            }
         }
         if (toUpdate.length > 0) {
             const { error } = await supabaseClient.from('public_talks').upsert(toUpdate);
-            if (error) throw error;
+            if (error) {
+                console.error('[saveWeekendData] Update error:', JSON.stringify(error));
+                throw error;
+            }
         }
 
         alert('주말 데이터가 성공적으로 저장되었습니다.');
@@ -1560,8 +1575,9 @@ async function saveWeekendData() {
         await syncAssignmentHistory('weekend'); // 이력 동기화 추가
         loadWeekendData();
     } catch (e) {
-        console.error(e);
-        alert('저장 중 오류 발생');
+        console.error('[saveWeekendData] Exception:', e);
+        const msg = e?.message || e?.details || JSON.stringify(e) || '알 수 없는 오류';
+        alert('저장 중 오류 발생:\n' + msg);
     }
 
 }
