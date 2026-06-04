@@ -3,7 +3,7 @@
 window.appState = {
     initialized: false,
     userName: localStorage.getItem('userName') || null,
-    congregationName: localStorage.getItem('congregationName') || 'MplusKJ'
+    congregationName: localStorage.getItem('congregationName') || '집회 계획표'
 };
 // 초기 title은 localStorage 캐시로 즉시 설정 (DB 로드 후 setupNavigationButtons에서 최신값으로 갱신됨)
 document.title = window.appState.congregationName + " 집회계획표";
@@ -118,7 +118,7 @@ async function setupNavigationButtons() {
             .select('*');
 
         if (!settingsErr && settingsData) {
-            const congName = settingsData.find(s => s.key === 'congregation_name')?.value || 'MplusKJ';
+            const congName = settingsData.find(s => s.key === 'congregation_name')?.value || '집회 계획표';
             const fontViewer = settingsData.find(s => s.key === 'font_viewer')?.value || 'Pretendard';
 
             window.appState.congregationName = congName;
@@ -394,7 +394,7 @@ function renderSchedules() {
         return html;
     };
 
-    const congregationName = window.appState.congregationName || 'MplusKJ';
+    const congregationName = window.appState.congregationName || '집회 계획표';
 
     let html = `
     <div style="position:relative;">
@@ -515,7 +515,7 @@ function renderWeekendSchedulesTable() {
         return;
     }
 
-    const congregationName = window.appState.congregationName || 'MplusKJ';
+    const congregationName = window.appState.congregationName || '집회 계획표';
 
     // Split Header: Left Small / Center Large
     let headerHtml = `
