@@ -2,8 +2,8 @@ const CUSTOM_SUPABASE_URL = localStorage.getItem('CUSTOM_SUPABASE_URL');
 const CUSTOM_SUPABASE_KEY = localStorage.getItem('CUSTOM_SUPABASE_KEY');
 
 const APP_CONFIG = {
-    SUPABASE_URL: CUSTOM_SUPABASE_URL || 'https://sppgggjhslaxecoopnfn.supabase.co',
-    SUPABASE_KEY: CUSTOM_SUPABASE_KEY || 'sb_publishable_wxGXxpaOyrmaD9r19E7rTw_4Beazi_A',
+    SUPABASE_URL: CUSTOM_SUPABASE_URL || (typeof SUPABASE_CONFIG !== 'undefined' ? SUPABASE_CONFIG.SUPABASE_URL : 'https://sppgggjhslaxecoopnfn.supabase.co'),
+    SUPABASE_KEY: CUSTOM_SUPABASE_KEY || (typeof SUPABASE_CONFIG !== 'undefined' ? SUPABASE_CONFIG.SUPABASE_KEY : 'sb_publishable_wxGXxpaOyrmaD9r19E7rTw_4Beazi_A'),
     DEFAULT_RANGE: '평일집회',
     ALLOWED_SHEETS: ['평일집회', 'Ko계획표']
 };

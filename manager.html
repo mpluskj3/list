@@ -1066,6 +1066,24 @@
                 <input type="password" id="admin-pw" placeholder="비밀번호를 입력하세요">
             </div>
             <button id="btn-login" class="btn-login">로그인</button>
+            <div style="text-align: center; margin-top: 15px;">
+                <a href="#" onclick="toggleLoginSetup(event)" style="font-size: 0.78rem; color: var(--gray-500); text-decoration: none;">
+                    <i class="fas fa-database"></i> Supabase 설정 변경
+                </a>
+            </div>
+            <div id="login-setup-form" style="display: none; margin-top: 15px; padding-top: 15px; border-top: 1px solid var(--gray-200);">
+                <div class="form-group" style="margin-bottom: 10px;">
+                    <label style="font-size: 0.75rem;">Supabase URL</label>
+                    <input type="text" id="login-supabase-url" style="padding: 8px 10px; font-size: 0.8rem;" placeholder="https://your-project.supabase.co">
+                </div>
+                <div class="form-group" style="margin-bottom: 15px;">
+                    <label style="font-size: 0.75rem;">Supabase Key (Service Role Key)</label>
+                    <input type="password" id="login-supabase-key" style="padding: 8px 10px; font-size: 0.8rem;" placeholder="your-service-role-key">
+                </div>
+                <div style="display: flex; gap: 6px; justify-content: flex-end;">
+                    <button onclick="saveLoginSupabase()" class="btn btn-primary" style="padding: 5px 12px; font-size: 0.75rem;">설정 저장</button>
+                </div>
+            </div>
         </div>
     </div>
 
@@ -1721,6 +1739,7 @@
     </div>
 
     <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
+    <script src="supabase_config.js"></script>
     <script src="utils.js"></script>
     <script src="manager.js"></script>
 </body>

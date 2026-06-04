@@ -3870,3 +3870,54 @@ window.saveCustomSupabase = saveCustomSupabase;
 window.resetCustomSupabase = resetCustomSupabase;
 window.copySchemaSql = copySchemaSql;
 window.seedInitialData = seedInitialData;
+
+function toggleLoginSetup(e) {
+    if (e) e.preventDefault();
+    const form = document.getElementById('login-setup-form');
+    if (form) {
+        form.style.display = (form.style.display === 'none') ? 'block' : 'none';
+        if (form.style.display === 'block') {
+            const curUrl = localStorage.getItem('CUSTOM_SUPABASE_URL') || '';
+            const curKey = localStorage.getItem('CUSTOM_SUPABASE_KEY') || '';
+            document.getElementById('login-supabase-url').value = curUrl;
+            document.getElementById('login-supabase-key').value = curKey;
+        }
+    }
+}
+
+async function saveLoginSupabase() {
+    const url = document.getElementById('login-supabase-url').value.trim();
+    const key = document.getElementById('login-supabase-key').value.trim();
+
+    if (!url || !key) {
+        alert('Supabase URL과 Key를 모두 입력해야 합니다.');
+        return;
+    }
+
+    if (!url.startsWith('https://')) {
+        alert('유효한 Supabase URL을 입력해 주세요. (예: https://xxxx.supabase.co)');
+        return;
+    }
+
+    try {
+        const tempClient = window.supabase.createClient(url, key);
+        const { error } = await tempClient.from('app_settings').select('*').limit(1);
+        if (error && error.message && (error.message.includes('Fetch') || error.status === 400 || error.status === 401 || error.status === 403)) {
+            throw new Error(error.message);
+        }
+    } catch (err) {
+        console.error('Supabase connection test failed:', err);
+        if (!confirm('연결 테스트에 실패했습니다. (잘못된 URL/Key 또는 네트워크 오류)\n그래도 이 설정을 저장하시겠습니까?')) {
+            return;
+        }
+    }
+
+    localStorage.setItem('CUSTOM_SUPABASE_URL', url);
+    localStorage.setItem('CUSTOM_SUPABASE_KEY', key);
+    alert('Supabase 연결 설정이 저장되었습니다. 설정을 적용하기 위해 페이지를 새로고침합니다.');
+    location.reload();
+}
+
+window.toggleLoginSetup = toggleLoginSetup;
+window.saveLoginSupabase = saveLoginSupabase;
+
