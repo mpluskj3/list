@@ -23,7 +23,8 @@ let nextFocusTarget = { idx: null, field: null };
 const weekendFieldSequence = ['speaker', 'congregation', 'speaker_contact', 'inviter', 'chairman', 'reader', 'bible_reader', 'prayer'];
 
 
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', async () => {
+    await checkAndApplyCustomDatabase();
     if (adminInfo) {
         showManagerContent();
     } else {
@@ -192,6 +193,9 @@ function setupEventListeners() {
     const btnResetSupabase = document.getElementById('btn-reset-supabase');
     if (btnResetSupabase) btnResetSupabase.addEventListener('click', resetCustomSupabase);
 
+    const btnRegisterSupabaseWeb = document.getElementById('btn-register-supabase-web');
+    if (btnRegisterSupabaseWeb) btnRegisterSupabaseWeb.addEventListener('click', registerSupabaseWeb);
+
     const btnCopySql = document.getElementById('btn-copy-sql');
     if (btnCopySql) btnCopySql.addEventListener('click', copySchemaSql);
 
@@ -303,22 +307,46 @@ function showManagerContent() {
 }
 
 async function handleLogin() {
-    const name = document.getElementById('admin-name').value;
-    const pw = document.getElementById('admin-pw').value;
+    const name = document.getElementById('admin-name').value.trim();
+    const pw = document.getElementById('admin-pw').value.trim();
 
     if (!name || !pw) {
         alert('이름과 비밀번호를 입력하세요.');
         return;
     }
 
-
     try {
+        // 1. 먼저 defaultSupabaseClient를 사용하여 database_connections에 등록된 설정이 있는지 확인합니다.
+        let isCustomDb = false;
+        if (defaultSupabaseClient) {
+            const { data: dbConfig, error: dbErr } = await defaultSupabaseClient
+                .from('database_connections')
+                .select('*')
+                .eq('username', name)
+                .eq('password', pw)
+                .maybeSingle();
+
+            if (dbConfig && dbConfig.supabase_url && dbConfig.supabase_key) {
+                console.log('[Login] 커스텀 DB 정보 발견:', dbConfig.supabase_url);
+                // Active 클라이언트를 커스텀 DB로 전환
+                supabaseClient = window.supabase.createClient(dbConfig.supabase_url, dbConfig.supabase_key);
+                APP_CONFIG.SUPABASE_URL = dbConfig.supabase_url;
+                APP_CONFIG.SUPABASE_KEY = dbConfig.supabase_key;
+
+                // 세션에 저장하여 세션 유지
+                sessionStorage.setItem('SESSION_SUPABASE_URL', dbConfig.supabase_url);
+                sessionStorage.setItem('SESSION_SUPABASE_KEY', dbConfig.supabase_key);
+                isCustomDb = true;
+            }
+        }
+
+        // 2. 현재 활성화된 supabaseClient(커스텀 또는 기본)에서 사용자 로그인 인증을 수행합니다.
         const { data, error } = await supabaseClient
             .from('admin_users')
             .select('*')
             .eq('username', name)
             .eq('password', pw)
-            .single();
+            .maybeSingle();
 
         if (data) {
             adminInfo = {
@@ -330,13 +358,15 @@ async function handleLogin() {
             sessionStorage.setItem('adminInfo', JSON.stringify(adminInfo));
             showManagerContent();
         } else {
-            alert('이름 또는 비밀번호가 일치하지 않습니다.');
+            if (isCustomDb) {
+                alert('데이터베이스 연결은 확인되었으나, 해당 데이터베이스의 admin_users 테이블에 일치하는 관리자 계정이 없습니다.\n초기 데이터를 생성(Seed)했는지 확인해 주세요.');
+            } else {
+                alert('이름 또는 비밀번호가 일치하지 않습니다.');
+            }
         }
     } catch (error) {
         console.error('Login error:', error);
         alert('로그인 중 오류가 발생했습니다.');
-    } finally {
-
     }
 }
 
@@ -3854,6 +3884,16 @@ ALTER TABLE public.app_settings DISABLE ROW LEVEL SECURITY;
 INSERT INTO public.app_settings (key, value) 
 VALUES ('congregation_name', '춘천수어집단')
 ON CONFLICT (key) DO NOTHING;
+
+-- 9. Create database_connections table (웹 로그인용 DB 연결 매핑 테이블)
+CREATE TABLE IF NOT EXISTS public.database_connections (
+    username TEXT PRIMARY KEY,
+    password TEXT NOT NULL,
+    supabase_url TEXT NOT NULL,
+    supabase_key TEXT NOT NULL,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+ALTER TABLE public.database_connections DISABLE ROW LEVEL SECURITY;
 `;
 
 // Bind methods to window scope for onclick/ondblclick events
@@ -3918,6 +3958,66 @@ async function saveLoginSupabase() {
     location.reload();
 }
 
+async function registerSupabaseWeb() {
+    const url = document.getElementById('supabase-url-input').value.trim();
+    const key = document.getElementById('supabase-key-input').value.trim();
+
+    if (!url || !key) {
+        alert('Supabase URL과 Key를 모두 입력해야 합니다.');
+        return;
+    }
+
+    if (!url.startsWith('https://')) {
+        alert('유효한 Supabase URL을 입력해 주세요. (예: https://xxxx.supabase.co)');
+        return;
+    }
+
+    const regName = prompt('웹 로그인 시 사용할 로그인 ID(이름)를 입력해 주세요:');
+    if (!regName) return;
+    const regPw = prompt('웹 로그인 시 사용할 비밀번호를 입력해 주세요:');
+    if (!regPw) return;
+
+    try {
+        // Test connection first
+        const tempClient = window.supabase.createClient(url, key);
+        const { error: testErr } = await tempClient.from('app_settings').select('*').limit(1);
+        if (testErr && testErr.message && (testErr.message.includes('Fetch') || testErr.status === 400 || testErr.status === 401 || testErr.status === 403)) {
+            throw new Error(testErr.message);
+        }
+    } catch (err) {
+        console.error('Supabase connection test failed:', err);
+        if (!confirm('연결 테스트에 실패했습니다. (잘못된 URL/Key 또는 네트워크 오류)\n그래도 웹 로그인을 계속 등록하시겠습니까?')) {
+            return;
+        }
+    }
+
+    try {
+        if (!defaultSupabaseClient) {
+            throw new Error('기본 Supabase 클라이언트가 초기화되지 않았습니다.');
+        }
+
+        // Save connection to default database's database_connections table
+        const { error: regErr } = await defaultSupabaseClient
+            .from('database_connections')
+            .upsert({
+                username: regName,
+                password: regPw,
+                supabase_url: url,
+                supabase_key: key
+            });
+
+        if (regErr) {
+            throw regErr;
+        }
+
+        alert('웹 로그인 정보 등록이 완료되었습니다!\n이제 어느 기기에서든 이 ID와 비밀번호로 로그인하면 이 데이터베이스에 자동으로 연결됩니다.');
+    } catch (err) {
+        console.error('Registration failed:', err);
+        alert('웹 등록에 실패했습니다. (상세 오류: ' + err.message + ')');
+    }
+}
+
 window.toggleLoginSetup = toggleLoginSetup;
 window.saveLoginSupabase = saveLoginSupabase;
+window.registerSupabaseWeb = registerSupabaseWeb;
 

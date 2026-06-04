@@ -1540,12 +1540,15 @@
                             <label for="supabase-key-input" style="font-size: 0.78rem; font-weight: 600; color: var(--gray-600);">Supabase API Key (Anon Public Key)</label>
                             <input type="password" id="supabase-key-input" class="field" placeholder="your-anon-public-key" style="width: 100%;">
                         </div>
-                        <div style="display: flex; gap: 8px; justify-content: flex-end;">
+                        <div style="display: flex; gap: 8px; justify-content: flex-end; flex-wrap: wrap;">
                             <button id="btn-reset-supabase" class="btn btn-ghost" style="font-size: 0.78rem;">
                                 <i class="fas fa-undo"></i> 기본 연결로 복원
                             </button>
                             <button id="btn-save-supabase" class="btn btn-save" style="font-size: 0.78rem; background: var(--primary);">
-                                <i class="fas fa-check"></i> 연결 정보 저장 및 테스트
+                                <i class="fas fa-check"></i> 로컬 기기에 저장
+                            </button>
+                            <button id="btn-register-supabase-web" class="btn btn-purple" style="font-size: 0.78rem;">
+                                <i class="fas fa-globe"></i> 웹 로그인 정보로 등록
                             </button>
                         </div>
                     </div>

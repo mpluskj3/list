@@ -28,6 +28,7 @@ document.addEventListener('DOMContentLoaded', initializeApp);
 
 
 async function initializeApp() {
+    await checkAndApplyCustomDatabase();
     window.appState.initialized = true;
 
     if (!window.appState.userName) {

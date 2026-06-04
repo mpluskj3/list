@@ -1,9 +1,17 @@
-const CUSTOM_SUPABASE_URL = localStorage.getItem('CUSTOM_SUPABASE_URL');
-const CUSTOM_SUPABASE_KEY = localStorage.getItem('CUSTOM_SUPABASE_KEY');
+const defaultUrl = typeof SUPABASE_CONFIG !== 'undefined' ? SUPABASE_CONFIG.SUPABASE_URL : 'https://sppgggjhslaxecoopnfn.supabase.co';
+const defaultKey = typeof SUPABASE_CONFIG !== 'undefined' ? SUPABASE_CONFIG.SUPABASE_KEY : 'sb_publishable_wxGXxpaOyrmaD9r19E7rTw_4Beazi_A';
+
+let defaultSupabaseClient = null;
+if (window.supabase) {
+    defaultSupabaseClient = window.supabase.createClient(defaultUrl, defaultKey);
+}
+
+const CUSTOM_SUPABASE_URL = localStorage.getItem('CUSTOM_SUPABASE_URL') || sessionStorage.getItem('SESSION_SUPABASE_URL');
+const CUSTOM_SUPABASE_KEY = localStorage.getItem('CUSTOM_SUPABASE_KEY') || sessionStorage.getItem('SESSION_SUPABASE_KEY');
 
 const APP_CONFIG = {
-    SUPABASE_URL: CUSTOM_SUPABASE_URL || (typeof SUPABASE_CONFIG !== 'undefined' ? SUPABASE_CONFIG.SUPABASE_URL : 'https://sppgggjhslaxecoopnfn.supabase.co'),
-    SUPABASE_KEY: CUSTOM_SUPABASE_KEY || (typeof SUPABASE_CONFIG !== 'undefined' ? SUPABASE_CONFIG.SUPABASE_KEY : 'sb_publishable_wxGXxpaOyrmaD9r19E7rTw_4Beazi_A'),
+    SUPABASE_URL: CUSTOM_SUPABASE_URL || defaultUrl,
+    SUPABASE_KEY: CUSTOM_SUPABASE_KEY || defaultKey,
     DEFAULT_RANGE: '평일집회',
     ALLOWED_SHEETS: ['평일집회', 'Ko계획표']
 };
@@ -11,6 +19,43 @@ const APP_CONFIG = {
 let supabaseClient = null;
 if (window.supabase) {
     supabaseClient = window.supabase.createClient(APP_CONFIG.SUPABASE_URL, APP_CONFIG.SUPABASE_KEY);
+}
+
+// 헬퍼 함수: URL 파라미터 또는 세션 저장소를 확인하여 custom database 연결 정보 적용
+async function checkAndApplyCustomDatabase() {
+    const urlParams = new URLSearchParams(window.location.search);
+    const dbParam = urlParams.get('db') || urlParams.get('cong');
+    
+    if (dbParam && defaultSupabaseClient) {
+        try {
+            console.log('[CustomDB] URL 파라미터 감지:', dbParam);
+            const { data, error } = await defaultSupabaseClient
+                .from('database_connections')
+                .select('supabase_url, supabase_key')
+                .eq('username', dbParam.trim())
+                .maybeSingle();
+                
+            if (error) {
+                console.error('[CustomDB] 연결 정보 조회 중 오류 발생:', error);
+            }
+                
+            if (data && data.supabase_url && data.supabase_key) {
+                console.log('[CustomDB] 커스텀 DB 연결 정보 발견:', data.supabase_url);
+                // Active 클라이언트 재설정
+                supabaseClient = window.supabase.createClient(data.supabase_url, data.supabase_key);
+                APP_CONFIG.SUPABASE_URL = data.supabase_url;
+                APP_CONFIG.SUPABASE_KEY = data.supabase_key;
+                
+                // 세션에 저장하여 세션 유지
+                sessionStorage.setItem('SESSION_SUPABASE_URL', data.supabase_url);
+                sessionStorage.setItem('SESSION_SUPABASE_KEY', data.supabase_key);
+            } else {
+                console.warn('[CustomDB] 지정된 ID에 해당하는 커스텀 DB를 찾을 수 없습니다:', dbParam);
+            }
+        } catch (e) {
+            console.error('[CustomDB] 커스텀 DB 적용 중 오류:', e);
+        }
+    }
 }
 
 // HTML 이스케이프 처리 (XSS 방지)
