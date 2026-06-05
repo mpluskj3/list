@@ -1132,11 +1132,8 @@
             <button class="tab-btn" data-tab="assignment-mgmt">
                 <i class="tab-icon fas fa-magic"></i> 배정 관리
             </button>
-            <button class="tab-btn" id="tab-admin-accounts" data-tab="admin-accounts" style="display:none;">
-                <i class="tab-icon fas fa-users-cog"></i> 계정 관리
-            </button>
             <button class="tab-btn" id="tab-menu-settings" data-tab="menu-settings">
-                <i class="tab-icon fas fa-sliders-h"></i> 메뉴 설정
+                <i class="tab-icon fas fa-cog"></i> 설정
             </button>
             <button class="tab-btn" id="tab-print-schedules" data-tab="print-schedules">
                 <i class="tab-icon fas fa-print"></i> 인쇄
@@ -1519,9 +1516,40 @@
                     </div>
                 </div>
 
+                <!-- 관리자 계정 관리 -->
+                <div class="settings-card">
+                    <h3><span class="badge-num">3</span> 관리자 계정 관리</h3>
+                    <p class="settings-note">최고관리자는 일반 관리자의 비밀번호를 임의로 재설정할 수 있습니다.</p>
+                    <div style="margin-bottom:12px;">
+                        <button id="btn-add-account" class="btn btn-success">
+                            <i class="fas fa-user-plus"></i> 새 관리자 추가
+                        </button>
+                    </div>
+                    <div style="overflow-x:auto;">
+                        <table class="data-table" id="admin-accounts-table">
+                            <thead>
+                                <tr>
+                                    <th>이름(ID)</th>
+                                    <th>새 비밀번호</th>
+                                    <th style="width:150px;">권한(Role)</th>
+                                    <th style="width:80px;">평일</th>
+                                    <th style="width:80px;">주말</th>
+                                    <th style="width:90px;">관리</th>
+                                </tr>
+                            </thead>
+                            <tbody><!-- 동적 데이터 생성 --></tbody>
+                        </table>
+                    </div>
+                    <div style="margin-top:16px; text-align:right;">
+                        <button id="btn-save-accounts" class="btn btn-save">
+                            <i class="fas fa-save"></i> 관리자 권한 저장
+                        </button>
+                    </div>
+                </div>
+
                 <!-- Supabase 연결 설정 및 데이터베이스 초기화 -->
                 <div class="settings-card">
-                    <h3><span class="badge-num">3</span> Supabase 연결 설정 및 DB 초기화</h3>
+                    <h3><span class="badge-num">4</span> Supabase 연결 설정 및 DB 초기화</h3>
                     <p class="settings-note">
                         다른 Supabase 프로젝트(계정)를 사용하여 새로운 회중용 계획표 시스템을 구축할 수 있습니다.<br>
                         새로운 연결 세부 정보를 입력하고 저장한 후, DB 초기화 안내에 따라 테이블을 생성하십시오.
@@ -1547,8 +1575,40 @@
                             <button id="btn-save-supabase" class="btn btn-save" style="font-size: 0.78rem; background: var(--primary);">
                                 <i class="fas fa-check"></i> 로컬 기기에 저장
                             </button>
-                            <button id="btn-register-supabase-web" class="btn btn-purple" style="font-size: 0.78rem;">
-                                <i class="fas fa-globe"></i> 웹 로그인 정보로 등록
+                        </div>
+                    </div>
+
+                    <!-- 웹 로그인 정보 목록 (수정/삭제 가능) -->
+                    <div id="web-login-list-container" style="margin-top: 20px; border-top: 1px dashed var(--border); padding-top: 15px; margin-bottom: 20px;">
+                        <h4 style="margin: 0 0 10px; font-size: 0.82rem; color: var(--gray-800); display: flex; align-items: center; gap: 6px; font-weight: bold;">
+                            <i class="fas fa-list" style="color: var(--primary);"></i> 등록된 웹 로그인 정보 목록
+                        </h4>
+                        <div style="margin-bottom:12px; display: flex; gap: 8px;">
+                            <button id="btn-add-web-login" class="btn btn-success" style="font-size: 0.75rem; padding: 4px 10px;">
+                                <i class="fas fa-plus"></i> 새 웹 로그인 추가
+                            </button>
+                        </div>
+                        <div style="overflow-x:auto;">
+                            <table class="data-table" id="web-login-connections-table" style="font-size: 0.78rem;">
+                                <thead>
+                                    <tr>
+                                        <th>아이디(ID)</th>
+                                        <th>비밀번호</th>
+                                        <th>Supabase URL</th>
+                                        <th>Supabase API Key</th>
+                                        <th style="width: 100px;">관리</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr>
+                                        <td colspan="5" style="text-align:center; color:var(--gray-400);">등록된 웹 로그인 정보가 없습니다.</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                        <div style="margin-top: 10px; text-align: right;">
+                            <button id="btn-save-menu-web-logins" class="btn btn-save" style="font-size: 0.78rem; background: var(--purple);">
+                                <i class="fas fa-save"></i> 웹 로그인 정보 저장
                             </button>
                         </div>
                     </div>
@@ -1583,42 +1643,6 @@
             </div>
         </div>
 
-        <!-- ────────────────────────────────── -->
-        <!-- 계정 관리 탭 (최고관리자 전용) -->
-        <!-- ────────────────────────────────── -->
-        <div id="admin-accounts-tab" class="tab-content" style="display:none;">
-            <div class="settings-tab-inner">
-                <div class="settings-card">
-                    <h3><span class="badge-num">👥</span> 관리자 계정 관리</h3>
-                    <p class="settings-note">최고관리자는 일반 관리자의 비밀번호를 임의로 재설정할 수 있습니다.</p>
-                    <div style="margin-bottom:12px;">
-                        <button id="btn-add-account" class="btn btn-success">
-                            <i class="fas fa-user-plus"></i> 새 관리자 추가
-                        </button>
-                    </div>
-                    <div style="overflow-x:auto;">
-                        <table class="data-table" id="admin-accounts-table">
-                            <thead>
-                                <tr>
-                                    <th>이름(ID)</th>
-                                    <th>새 비밀번호</th>
-                                    <th style="width:150px;">권한(Role)</th>
-                                    <th style="width:80px;">평일</th>
-                                    <th style="width:80px;">주말</th>
-                                    <th style="width:90px;">관리</th>
-                                </tr>
-                            </thead>
-                            <tbody><!-- 동적 데이터 생성 --></tbody>
-                        </table>
-                    </div>
-                    <div style="margin-top:16px; text-align:right;">
-                        <button id="btn-save-accounts" class="btn btn-save">
-                            <i class="fas fa-save"></i> 관리자 권한 저장
-                        </button>
-                    </div>
-                </div>
-            </div>
-        </div>
 
         <!-- ────────────────────────────────── -->
         <!-- 전도인 관리 탭 -->

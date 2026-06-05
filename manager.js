@@ -9,6 +9,8 @@ let deletedWeekendIds = [];
 let currentWeekendFilter = 'upcoming';
 let adminUsers = [];
 let deletedAdminIds = [];
+let webConnections = [];
+let deletedWebConnectionUsernames = [];
 let publishers = [];
 let deletedPublisherIds = [];
 let assignmentHistory = [];
@@ -53,10 +55,10 @@ function setupEventListeners() {
 
             if (tabId === 'menu-settings') {
                 loadNavLinks();
+                loadAdminAccounts();
+                loadWebConnections();
             } else if (tabId === 'weekend-data') {
                 loadWeekendData();
-            } else if (tabId === 'admin-accounts') {
-                loadAdminAccounts();
             } else if (tabId === 'publisher-mgmt') {
                 loadPublishers();
             } else if (tabId === 'assignment-mgmt') {
@@ -193,8 +195,13 @@ function setupEventListeners() {
     const btnResetSupabase = document.getElementById('btn-reset-supabase');
     if (btnResetSupabase) btnResetSupabase.addEventListener('click', resetCustomSupabase);
 
-    const btnRegisterSupabaseWeb = document.getElementById('btn-register-supabase-web');
-    if (btnRegisterSupabaseWeb) btnRegisterSupabaseWeb.addEventListener('click', registerSupabaseWeb);
+
+
+    const btnSaveMenuWebLogins = document.getElementById('btn-save-menu-web-logins');
+    if (btnSaveMenuWebLogins) btnSaveMenuWebLogins.addEventListener('click', saveWebConnections);
+
+    const btnAddWebLogin = document.getElementById('btn-add-web-login');
+    if (btnAddWebLogin) btnAddWebLogin.addEventListener('click', addWebConnectionRow);
 
     const btnCopySql = document.getElementById('btn-copy-sql');
     if (btnCopySql) btnCopySql.addEventListener('click', copySchemaSql);
@@ -217,7 +224,6 @@ function showManagerContent() {
 
     // 최고관리자 여부에 따른 탭 노출 제어
     const isSuper = adminInfo && adminInfo.role === 'superadmin';
-    document.getElementById('tab-admin-accounts').style.display = isSuper ? 'inline-block' : 'none';
     document.getElementById('tab-menu-settings').style.display = isSuper ? 'inline-block' : 'none';
 
     // 일반 관리자 권한별 탭 노출 제어
@@ -3958,66 +3964,156 @@ async function saveLoginSupabase() {
     location.reload();
 }
 
-async function registerSupabaseWeb() {
-    const url = document.getElementById('supabase-url-input').value.trim();
-    const key = document.getElementById('supabase-key-input').value.trim();
+
+
+async function loadWebConnections() {
+    if (!defaultSupabaseClient) return;
+
+    try {
+        const { data, error } = await defaultSupabaseClient
+            .from('database_connections')
+            .select('*')
+            .order('username', { ascending: true });
+
+        if (error) throw error;
+        webConnections = data || [];
+        deletedWebConnectionUsernames = [];
+        renderWebConnectionsTables();
+    } catch (e) {
+        console.error(e);
+        alert('웹 로그인 정보를 불러오는 중 오류 발생');
+    }
+}
+
+function renderWebConnectionsTables() {
+    // 1. Menu Settings Table
+    const menuTbody = document.querySelector('#web-login-connections-table tbody');
+    if (menuTbody) {
+        menuTbody.innerHTML = '';
+        if (webConnections.length === 0) {
+            menuTbody.innerHTML = `<tr><td colspan="5" style="text-align:center; color:var(--gray-400);">등록된 웹 로그인 정보가 없습니다.</td></tr>`;
+        } else {
+            webConnections.forEach((conn, idx) => {
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td><input type="text" value="${escapeHtml(conn.username)}" onchange="updateWebConnectionData(${idx}, 'username', this.value)"></td>
+                    <td><input type="text" value="${escapeHtml(conn.password)}" onchange="updateWebConnectionData(${idx}, 'password', this.value)"></td>
+                    <td><input type="text" value="${escapeHtml(conn.supabase_url)}" onchange="updateWebConnectionData(${idx}, 'supabase_url', this.value)"></td>
+                    <td><input type="password" value="${escapeHtml(conn.supabase_key)}" onchange="updateWebConnectionData(${idx}, 'supabase_key', this.value)" placeholder="Key 값 입력"></td>
+                    <td style="text-align:center;">
+                        <button class="btn btn-ghost btn-sm" onclick="testWebConnection(${idx})" style="padding: 2px 6px; font-size: 0.72rem; margin-right:4px;" title="연결 테스트"><i class="fas fa-link"></i></button>
+                        <span class="btn-delete" onclick="deleteWebConnection(${idx})"><i class="fas fa-trash"></i></span>
+                    </td>
+                `;
+                menuTbody.appendChild(tr);
+            });
+        }
+    }
+
+}
+
+function updateWebConnectionData(idx, field, value) {
+    webConnections[idx][field] = value;
+}
+
+function deleteWebConnection(idx) {
+    if (!confirm('이 웹 로그인 정보를 삭제하시겠습니까?')) return;
+    const conn = webConnections[idx];
+    if (conn.created_at) { // Only track if it exists in DB
+        deletedWebConnectionUsernames.push(conn.username);
+    }
+    webConnections.splice(idx, 1);
+    renderWebConnectionsTables();
+}
+
+function addWebConnectionRow() {
+    webConnections.push({
+        username: '',
+        password: '',
+        supabase_url: '',
+        supabase_key: ''
+    });
+    renderWebConnectionsTables();
+}
+
+async function testWebConnection(idx) {
+    const conn = webConnections[idx];
+    const url = conn.supabase_url.trim();
+    const key = conn.supabase_key.trim();
 
     if (!url || !key) {
-        alert('Supabase URL과 Key를 모두 입력해야 합니다.');
+        alert('Supabase URL과 Key를 모두 입력해야 테스트할 수 있습니다.');
         return;
     }
-
-    if (!url.startsWith('https://')) {
-        alert('유효한 Supabase URL을 입력해 주세요. (예: https://xxxx.supabase.co)');
-        return;
-    }
-
-    const regName = prompt('웹 로그인 시 사용할 로그인 ID(이름)를 입력해 주세요:');
-    if (!regName) return;
-    const regPw = prompt('웹 로그인 시 사용할 비밀번호를 입력해 주세요:');
-    if (!regPw) return;
 
     try {
-        // Test connection first
         const tempClient = window.supabase.createClient(url, key);
-        const { error: testErr } = await tempClient.from('app_settings').select('*').limit(1);
-        if (testErr && testErr.message && (testErr.message.includes('Fetch') || testErr.status === 400 || testErr.status === 401 || testErr.status === 403)) {
-            throw new Error(testErr.message);
+        const { error } = await tempClient.from('app_settings').select('*').limit(1);
+        if (error && error.message && (error.message.includes('Fetch') || error.status === 400 || error.status === 401 || error.status === 403)) {
+            throw new Error(error.message);
         }
+        alert('연결 테스트 성공! 데이터베이스와 성공적으로 연결되었습니다.');
     } catch (err) {
-        console.error('Supabase connection test failed:', err);
-        if (!confirm('연결 테스트에 실패했습니다. (잘못된 URL/Key 또는 네트워크 오류)\n그래도 웹 로그인을 계속 등록하시겠습니까?')) {
-            return;
-        }
+        console.error('Connection test failed:', err);
+        alert('연결 테스트 실패: ' + err.message);
     }
+}
+
+async function saveWebConnections() {
+    if (!defaultSupabaseClient) return;
 
     try {
-        if (!defaultSupabaseClient) {
-            throw new Error('기본 Supabase 클라이언트가 초기화되지 않았습니다.');
+        // 1. Delete deleted connections
+        if (deletedWebConnectionUsernames.length > 0) {
+            const { error: delErr } = await defaultSupabaseClient
+                .from('database_connections')
+                .delete()
+                .in('username', deletedWebConnectionUsernames);
+            if (delErr) throw delErr;
+            deletedWebConnectionUsernames = [];
         }
 
-        // Save connection to default database's database_connections table
-        const { error: regErr } = await defaultSupabaseClient
-            .from('database_connections')
-            .upsert({
-                username: regName,
-                password: regPw,
-                supabase_url: url,
-                supabase_key: key
-            });
-
-        if (regErr) {
-            throw regErr;
+        // 2. Validate and upsert connections
+        for (const conn of webConnections) {
+            if (!conn.username || !conn.password || !conn.supabase_url || !conn.supabase_key) {
+                alert('모든 필드(아이디, 비밀번호, Supabase URL, Key)를 입력해야 저장할 수 있습니다.');
+                return;
+            }
+            if (!conn.supabase_url.startsWith('https://')) {
+                alert('유효한 Supabase URL을 입력해 주세요. (https://로 시작해야 합니다)');
+                return;
+            }
         }
 
-        alert('웹 로그인 정보 등록이 완료되었습니다!\n이제 어느 기기에서든 이 ID와 비밀번호로 로그인하면 이 데이터베이스에 자동으로 연결됩니다.');
-    } catch (err) {
-        console.error('Registration failed:', err);
-        alert('웹 등록에 실패했습니다. (상세 오류: ' + err.message + ')');
+        const toUpsert = webConnections.map(conn => ({
+            username: conn.username.trim(),
+            password: conn.password.trim(),
+            supabase_url: conn.supabase_url.trim(),
+            supabase_key: conn.supabase_key.trim()
+        }));
+
+        if (toUpsert.length > 0) {
+            const { error: upsertErr } = await defaultSupabaseClient
+                .from('database_connections')
+                .upsert(toUpsert);
+            if (upsertErr) throw upsertErr;
+        }
+
+        alert('웹 로그인 정보가 성공적으로 저장되었습니다.');
+        await loadWebConnections();
+    } catch (e) {
+        console.error(e);
+        alert('웹 로그인 정보 저장 중 오류 발생: ' + e.message);
     }
 }
 
 window.toggleLoginSetup = toggleLoginSetup;
 window.saveLoginSupabase = saveLoginSupabase;
-window.registerSupabaseWeb = registerSupabaseWeb;
+
+window.updateWebConnectionData = updateWebConnectionData;
+window.deleteWebConnection = deleteWebConnection;
+window.addWebConnectionRow = addWebConnectionRow;
+window.testWebConnection = testWebConnection;
+window.saveWebConnections = saveWebConnections;
+window.loadWebConnections = loadWebConnections;
 
