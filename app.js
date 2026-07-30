@@ -693,40 +693,53 @@ async function fetchUserAssignedWeeks() {
             data.forEach(item => {
                 const a1 = item.assignee_1 || '';
                 const a2 = item.assignee_2 || '';
-                if (a1.includes(userName) || a2.includes(userName)) {
+                const hasA1 = a1.includes(userName);
+                const hasA2 = a2.includes(userName);
+
+                if (hasA1 || hasA2) {
                     if (!userAssignedWeeksMap.has(item.week_date)) {
                         userAssignedWeeksMap.set(item.week_date, []);
                     }
 
-                    // 프로/프로그램 명칭 정제
-                    let partTitle = '';
+                    const isBibleStudy = item.content && (item.content.includes('회중 성서 연구') || item.content.includes('회중성서연구') || item.content.includes('회중 성서연구'));
                     const isChairmanRow = (item.category === 'top' && item.part_num === '주간성경읽기 범위') ||
                                          (item.category === 'top' && item.content && !item.content.includes('노래'));
 
-                    if (isChairmanRow) {
-                        partTitle = '사회자';
-                    } else if (item.part_num && item.part_num.trim()) {
-                        partTitle = item.part_num.trim();
-                    } else if (item.content && item.content.trim()) {
-                        partTitle = item.content.trim();
-                    }
-
-                    // 명칭 단순화/커스텀 변경
-                    if (!isChairmanRow) {
-                        if (partTitle.includes('소개말') || (partTitle.includes('노래') && partTitle.includes('기도'))) {
-                            partTitle = '시작 기도';
-                        } else if (partTitle.includes('맺음말')) {
-                            partTitle = '마치는 기도';
+                    const addPartBadge = (labelStr) => {
+                        let finalTitle = labelStr;
+                        if (!isChairmanRow) {
+                            if (finalTitle.includes('소개말') || (finalTitle.includes('노래') && finalTitle.includes('기도'))) {
+                                finalTitle = '시작 기도';
+                            } else if (finalTitle.includes('맺음말')) {
+                                finalTitle = '마치는 기도';
+                            }
                         }
-                    }
+                        if (finalTitle.length > 15) {
+                            finalTitle = finalTitle.substring(0, 14) + '…';
+                        }
+                        if (finalTitle) {
+                            userAssignedWeeksMap.get(item.week_date).push({ type: 'weekday', label: finalTitle });
+                        }
+                    };
 
-                    // 길면 축약
-                    if (partTitle.length > 15) {
-                        partTitle = partTitle.substring(0, 14) + '…';
-                    }
-
-                    if (partTitle) {
-                        userAssignedWeeksMap.get(item.week_date).push({ type: 'weekday', label: partTitle });
+                    if (isBibleStudy) {
+                        const partPrefix = item.part_num ? `${item.part_num.trim()} ` : '';
+                        if (hasA1) {
+                            addPartBadge(`${partPrefix}회중 성서 연구`);
+                        }
+                        if (hasA2) {
+                            addPartBadge(`${partPrefix}낭독`);
+                        }
+                    } else {
+                        let partTitle = '';
+                        if (isChairmanRow) {
+                            partTitle = '사회자';
+                        } else if (item.part_num && item.part_num.trim()) {
+                            partTitle = item.part_num.trim();
+                        } else if (item.content && item.content.trim()) {
+                            partTitle = item.content.trim();
+                        }
+                        addPartBadge(partTitle);
                     }
                 }
             });
