@@ -726,8 +726,57 @@ async function fetchUserAssignedWeeks() {
                     }
 
                     if (partTitle) {
-                        userAssignedWeeksMap.get(item.week_date).push(partTitle);
+                        userAssignedWeeksMap.get(item.week_date).push({ type: 'weekday', label: partTitle });
                     }
+                }
+            });
+        }
+
+        // 주말 집회 계획표(public_talks) 배정 정보 매핑
+        const { data: weekendData, error: weekendErr } = await supabaseClient
+            .from('schedules')
+            .select('*');
+
+        // Note: public_talks error fallback or select
+        const { data: talksData, error: talksErr } = await supabaseClient
+            .from('public_talks')
+            .select('*');
+
+        const activeWeekendData = talksData || weekendData;
+
+        if (activeWeekendData && weeks && weeks.length > 0) {
+            activeWeekendData.forEach(row => {
+                if (!row.meeting_date) return;
+                const talkDate = new Date(row.meeting_date);
+                talkDate.setHours(0, 0, 0, 0);
+
+                // 해당 meeting_date가 포함된 week_date 찾기
+                const matchedWeek = weeks.find(w => {
+                    const range = parseWeekDate(w);
+                    if (!range) return false;
+                    const s = new Date(range.start); s.setHours(0, 0, 0, 0);
+                    const e = new Date(range.end); e.setHours(23, 59, 59, 999);
+                    return talkDate >= s && talkDate <= e;
+                });
+
+                if (matchedWeek) {
+                    const weekendFields = [
+                        { key: 'chairman', label: '사회자' },
+                        { key: 'speaker', label: '공개 강연' },
+                        { key: 'reader', label: '파수대' },
+                        { key: 'bible_reader', label: '낭독' },
+                        { key: 'prayer', label: '마치는 기도' }
+                    ];
+
+                    weekendFields.forEach(f => {
+                        const val = row[f.key] ? String(row[f.key]).trim() : '';
+                        if (val && val.includes(userName)) {
+                            if (!userAssignedWeeksMap.has(matchedWeek)) {
+                                userAssignedWeeksMap.set(matchedWeek, []);
+                            }
+                            userAssignedWeeksMap.get(matchedWeek).push({ type: 'weekend', label: f.label });
+                        }
+                    });
                 }
             });
         }
@@ -762,8 +811,12 @@ function openWeekSelectModal() {
 
             let itemHtml = `<div class="week-modal-date">${escapeHtml(weekDate)}</div>`;
             if (isAssigned && hasUser) {
-                const partsText = escapeHtml(assignedParts.join(', '));
-                itemHtml += `<span class="week-user-badge">${partsText}</span>`;
+                itemHtml += `<div class="week-badges-container">`;
+                assignedParts.forEach(p => {
+                    const badgeClass = p.type === 'weekend' ? 'week-user-badge badge-weekend' : 'week-user-badge badge-weekday';
+                    itemHtml += `<span class="${badgeClass}">${escapeHtml(p.label)}</span>`;
+                });
+                itemHtml += `</div>`;
             } else if (isCurrent) {
                 itemHtml += `<span style="font-size:0.8em; color:#6366f1; font-weight:bold;">현재 선택됨</span>`;
             }

@@ -690,18 +690,31 @@ body {
     color: #f57f17;
 }
 
+.week-badges-container {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+    justify-content: flex-end;
+    max-width: 65%;
+}
+
 .week-user-badge {
     display: inline-flex;
     align-items: center;
-    gap: 4px;
-    background-color: #fbc02d;
-    color: #000;
-    font-size: 0.78em;
+    font-size: 0.76em;
     font-weight: bold;
     padding: 3px 8px;
     border-radius: 12px;
-    max-width: 60%;
-    text-align: right;
-    word-break: keep-all;
     line-height: 1.2;
+    white-space: nowrap;
+}
+
+.badge-weekday {
+    background-color: #ffe082;
+    color: #000000;
+}
+
+.badge-weekend {
+    background-color: #90caf9;
+    color: #000000;
 }
