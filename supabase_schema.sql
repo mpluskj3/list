@@ -1,4 +1,4 @@
--- Supabase Schema for SheetViewer (Integrated Edition)
+-- Supabase Schema for SheetViewer (Unified & Integrated Edition)
 -- 모든 생성 구문은 IF NOT EXISTS를 사용하여 기존 데이터를 안전하게 보호합니다.
 
 -- 0. 확장 기능 활성화 (UUID 생성용)
@@ -14,6 +14,7 @@ CREATE TABLE IF NOT EXISTS public.schedules (
     duration TEXT,                -- 시간 (예: '(10분)')
     assignee_1 TEXT,              -- 배정자1 (예: '홍길동') 
     assignee_2 TEXT,              -- 배정자2
+    interpreter TEXT,             -- 통역 (예: 'Y' 또는 상세 내용)
     sheet_type TEXT,              -- '평일집회' 등
     sort_order INTEGER, 
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
@@ -26,11 +27,18 @@ CREATE TABLE IF NOT EXISTS public.publishers (
     name TEXT UNIQUE NOT NULL,
     gender TEXT,                  -- 성별
     birth_year INTEGER,           -- 출생연도 (구 나이)
+    is_deaf BOOLEAN DEFAULT FALSE, -- 농인 여부 (수어회중 특화)
+    interpretation_grade TEXT,    -- 통역 등급 (A, B, C, D)
     can_chairman BOOLEAN DEFAULT FALSE, -- 집회 사회 가능 여부
     can_reading BOOLEAN DEFAULT FALSE,  -- 성경 낭독 가능 여부
-    can_field_service BOOLEAN DEFAULT FALSE, -- 실연 가능 여부
+    can_field_service BOOLEAN DEFAULT FALSE, -- 야외 봉사/실연 가능 여부
     can_talk BOOLEAN DEFAULT FALSE,       -- 공개 강연 가능 여부
     can_bible_study BOOLEAN DEFAULT FALSE,   -- 성서 연구 가능 여부
+    limit_3min BOOLEAN DEFAULT FALSE,     -- 야외 봉사 3분 이하 제한 여부
+    period_6month BOOLEAN DEFAULT FALSE,  -- 야외 봉사 6개월 1회 제한 여부
+    period_1year BOOLEAN DEFAULT FALSE,   -- 야외 봉사 1년 1회 제한 여부
+    period_always BOOLEAN DEFAULT FALSE,  -- 야외 봉사 상시 배정 여부
+    remarks TEXT,                         -- 특이사항/비고
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 ALTER TABLE public.publishers DISABLE ROW LEVEL SECURITY;
@@ -39,9 +47,11 @@ ALTER TABLE public.publishers DISABLE ROW LEVEL SECURITY;
 CREATE TABLE IF NOT EXISTS public.assignment_history (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     publisher_name TEXT NOT NULL,
-    task_type TEXT NOT NULL, -- 'chairman', 'reading', 'speaker' 등
+    task_type TEXT NOT NULL, -- 'chairman', 'reading', 'speaker', 'interpreter' 등
     meeting_date DATE NOT NULL,
     partner_name TEXT,
+    week_date TEXT,          -- 배정됐던 주차
+    content TEXT,            -- 배정됐던 내용
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 ALTER TABLE public.assignment_history DISABLE ROW LEVEL SECURITY;
@@ -68,15 +78,32 @@ CREATE TABLE IF NOT EXISTS public.public_talks (
     reader TEXT,
     bible_reader TEXT,            -- 낭독자 성함
     prayer TEXT,
+    interpreter_name TEXT,        -- 통역자 성함 (수어회중 특화)
+    is_confirmed BOOLEAN DEFAULT FALSE, -- SL(수어) 여부 또는 확정 상태
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 ALTER TABLE public.public_talks DISABLE ROW LEVEL SECURITY;
 
--- 기존 테이블이 존재할 때 누락된 컬럼 안전하게 추가
+-- 기존 테이블이 존재할 때 누락된 컬럼 안전하게 추가 (마이그레이션 호환)
+ALTER TABLE public.schedules ADD COLUMN IF NOT EXISTS interpreter TEXT;
+
+ALTER TABLE public.publishers ADD COLUMN IF NOT EXISTS is_deaf BOOLEAN DEFAULT FALSE;
+ALTER TABLE public.publishers ADD COLUMN IF NOT EXISTS interpretation_grade TEXT;
 ALTER TABLE public.publishers ADD COLUMN IF NOT EXISTS can_talk BOOLEAN DEFAULT FALSE;
+ALTER TABLE public.publishers ADD COLUMN IF NOT EXISTS limit_3min BOOLEAN DEFAULT FALSE;
+ALTER TABLE public.publishers ADD COLUMN IF NOT EXISTS period_6month BOOLEAN DEFAULT FALSE;
+ALTER TABLE public.publishers ADD COLUMN IF NOT EXISTS period_1year BOOLEAN DEFAULT FALSE;
+ALTER TABLE public.publishers ADD COLUMN IF NOT EXISTS period_always BOOLEAN DEFAULT FALSE;
+ALTER TABLE public.publishers ADD COLUMN IF NOT EXISTS remarks TEXT;
+
+ALTER TABLE public.assignment_history ADD COLUMN IF NOT EXISTS week_date TEXT;
+ALTER TABLE public.assignment_history ADD COLUMN IF NOT EXISTS content TEXT;
+
 ALTER TABLE public.public_talks ADD COLUMN IF NOT EXISTS speaker_contact TEXT;
 ALTER TABLE public.public_talks ADD COLUMN IF NOT EXISTS inviter TEXT;
 ALTER TABLE public.public_talks ADD COLUMN IF NOT EXISTS bible_reader TEXT;
+ALTER TABLE public.public_talks ADD COLUMN IF NOT EXISTS interpreter_name TEXT;
+ALTER TABLE public.public_talks ADD COLUMN IF NOT EXISTS is_confirmed BOOLEAN DEFAULT FALSE;
 
 -- 6. Create admin_users table (관리자 계정)
 CREATE TABLE IF NOT EXISTS public.admin_users (
@@ -115,5 +142,19 @@ ALTER TABLE public.app_settings DISABLE ROW LEVEL SECURITY;
 
 -- 초기 설정값 생성 (이미 존재하는 경우 무시)
 INSERT INTO public.app_settings (key, value) 
-VALUES ('congregation_name', '춘천수어집단')
+VALUES 
+    ('congregation_name', '춘천회중'),
+    ('congregation_type', 'korean'),
+    ('show_interp_tag', 'true'),
+    ('show_sl_check', 'true')
 ON CONFLICT (key) DO NOTHING;
+
+-- 9. Create database_connections table (웹 로그인용 DB 연결 매핑 테이블)
+CREATE TABLE IF NOT EXISTS public.database_connections (
+    username TEXT PRIMARY KEY,
+    password TEXT NOT NULL,
+    supabase_url TEXT NOT NULL,
+    supabase_key TEXT NOT NULL,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+ALTER TABLE public.database_connections DISABLE ROW LEVEL SECURITY;

@@ -646,7 +646,7 @@ body {
 }
 
 .week-modal-item {
-    padding: 10px 12px;
+    padding: 12px 14px;
     border-radius: 8px;
     background-color: #f8f9fa;
     border: 1px solid #e9ecef;
@@ -656,7 +656,7 @@ body {
     gap: 6px;
     cursor: pointer;
     transition: background-color 0.15s, border-color 0.15s;
-    font-size: 0.95em;
+    font-size: 1.05em;
     box-sizing: border-box;
     width: 100%;
 }
@@ -664,7 +664,7 @@ body {
 .week-modal-date {
     font-weight: 600;
     white-space: nowrap;
-    font-size: 0.95em;
+    font-size: 1.05em;
     flex-shrink: 0;
 }
 
@@ -702,15 +702,15 @@ body {
     gap: 4px;
     justify-content: flex-end;
     align-items: center;
-    max-width: 60%;
+    max-width: 65%;
 }
 
 .week-user-badge {
     display: inline-flex;
     align-items: center;
-    font-size: 0.73em;
+    font-size: 0.85em;
     font-weight: bold;
-    padding: 2px 7px;
+    padding: 3px 8px;
     border-radius: 10px;
     line-height: 1.25;
     white-space: nowrap;
@@ -727,20 +727,42 @@ body {
     color: #000000;
 }
 
+/* 수어 및 통역 전용 뱃지 및 표시 스타일 */
+.badge-interp {
+    background-color: #ff7675;
+    color: #ffffff;
+    font-size: 0.72em;
+    font-weight: 700;
+    padding: 2px 6px;
+    border-radius: 4px;
+    margin-right: 4px;
+    display: inline-block;
+}
+
+.interp-tag-prefix {
+    color: #d63031;
+    font-weight: 700;
+    margin-right: 2px;
+}
+
+.sl-col-check, .sl-col-interp, .sl-col-deaf, .sl-col-interp-grade {
+    transition: all 0.2s ease;
+}
+
 /* 모바일 좁은 화면 대응 */
 @media screen and (max-width: 380px) {
     .week-modal-overlay {
         padding: 8px;
     }
     .week-modal-item {
-        padding: 8px 10px;
-        font-size: 0.88em;
+        padding: 9px 12px;
+        font-size: 0.96em;
     }
     .week-modal-date {
-        font-size: 0.88em;
+        font-size: 0.96em;
     }
     .week-user-badge {
-        font-size: 0.7em;
-        padding: 2px 5px;
+        font-size: 0.78em;
+        padding: 2px 6px;
     }
 }

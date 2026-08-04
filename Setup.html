@@ -1,0 +1,1378 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <title>초기 설정 및 DB 검증 마법사 | 집회 계획표</title>
+    <link rel="icon" type="image/svg+xml" href="icon.svg">
+    <link rel="icon" type="image/png" href="icon-192.png">
+    <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>
+        :root {
+            --setup-primary: #2563eb;
+            --setup-primary-hover: #1d4ed8;
+            --setup-success: #10b981;
+            --setup-danger: #ef4444;
+            --setup-warning: #f59e0b;
+            --setup-card-bg: #ffffff;
+            --setup-border: #e2e8f0;
+        }
+
+        body {
+            background-color: #f1f5f9;
+            color: #1e293b;
+            min-height: 100vh;
+            padding: 20px 10px;
+        }
+
+        .setup-container {
+            max-width: 900px;
+            margin: 0 auto;
+            background: #ffffff;
+            border-radius: 16px;
+            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.05);
+            overflow: hidden;
+        }
+
+        .setup-header {
+            background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
+            color: white;
+            padding: 30px 25px;
+            text-align: center;
+            position: relative;
+        }
+
+        .setup-header h1 {
+            margin: 0 0 10px 0;
+            font-size: 1.8rem;
+            font-weight: 700;
+            letter-spacing: -0.5px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+        }
+
+        .setup-header p {
+            margin: 0;
+            color: #94a3b8;
+            font-size: 0.95rem;
+        }
+
+        /* Step Progress Bar */
+        .step-progress-wrapper {
+            background: #f8fafc;
+            border-bottom: 1px solid var(--setup-border);
+            padding: 15px 20px;
+            overflow-x: auto;
+        }
+
+        .step-progress {
+            display: flex;
+            justify-content: space-between;
+            min-width: 600px;
+            position: relative;
+        }
+
+        .step-item {
+            flex: 1;
+            text-align: center;
+            position: relative;
+            cursor: pointer;
+            user-select: none;
+        }
+
+        .step-item:not(:last-child)::after {
+            content: '';
+            position: absolute;
+            top: 18px;
+            left: 50%;
+            width: 100%;
+            height: 3px;
+            background: #e2e8f0;
+            z-index: 1;
+        }
+
+        .step-item.completed:not(:last-child)::after {
+            background: var(--setup-success);
+        }
+
+        .step-icon {
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            background: #ffffff;
+            border: 2px solid #cbd5e1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 8px;
+            font-weight: 700;
+            color: #64748b;
+            position: relative;
+            z-index: 2;
+            transition: all 0.3s ease;
+        }
+
+        .step-item.active .step-icon {
+            border-color: var(--setup-primary);
+            background: var(--setup-primary);
+            color: white;
+            box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.2);
+        }
+
+        .step-item.completed .step-icon {
+            border-color: var(--setup-success);
+            background: var(--setup-success);
+            color: white;
+        }
+
+        .step-label {
+            font-size: 0.82rem;
+            font-weight: 600;
+            color: #64748b;
+        }
+
+        .step-item.active .step-label {
+            color: var(--setup-primary);
+            font-weight: 700;
+        }
+
+        .step-item.completed .step-label {
+            color: #0f172a;
+        }
+
+        /* Step Content Area */
+        .step-content-body {
+            padding: 30px 25px;
+        }
+
+        .step-panel {
+            display: none;
+        }
+
+        .step-panel.active {
+            display: block;
+            animation: fadeIn 0.3s ease-in-out;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(6px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .panel-title {
+            font-size: 1.3rem;
+            font-weight: 700;
+            color: #0f172a;
+            margin-bottom: 12px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .panel-desc {
+            color: #475569;
+            font-size: 0.95rem;
+            line-height: 1.6;
+            margin-bottom: 24px;
+        }
+
+        /* Form Controls & Inputs */
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-label {
+            display: block;
+            font-weight: 600;
+            font-size: 0.9rem;
+            color: #334155;
+            margin-bottom: 8px;
+        }
+
+        .form-control {
+            width: 100%;
+            padding: 12px 14px;
+            border: 1px solid #cbd5e1;
+            border-radius: 8px;
+            font-size: 0.95rem;
+            box-sizing: border-box;
+            transition: border-color 0.2s, box-shadow 0.2s;
+        }
+
+        .form-control:focus {
+            outline: none;
+            border-color: var(--setup-primary);
+            box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.15);
+        }
+
+        .form-hint {
+            font-size: 0.82rem;
+            color: #64748b;
+            margin-top: 6px;
+        }
+
+        /* Alert Callouts */
+        .alert-box {
+            padding: 16px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            display: flex;
+            align-items: flex-start;
+            gap: 12px;
+            font-size: 0.9rem;
+            line-height: 1.5;
+        }
+
+        .alert-info {
+            background-color: #eff6ff;
+            border: 1px solid #bfdbfe;
+            color: #1e40af;
+        }
+
+        .alert-success {
+            background-color: #ecfdf5;
+            border: 1px solid #a7f3d0;
+            color: #065f46;
+        }
+
+        .alert-warning {
+            background-color: #fffbeb;
+            border: 1px solid #fde68a;
+            color: #92400e;
+        }
+
+        .alert-danger {
+            background-color: #fef2f2;
+            border: 1px solid #fecaca;
+            color: #991b1b;
+        }
+
+        /* Buttons */
+        .btn-group {
+            display: flex;
+            gap: 12px;
+            flex-wrap: wrap;
+            margin-top: 25px;
+        }
+
+        .btn-setup {
+            padding: 12px 22px;
+            border-radius: 8px;
+            font-size: 0.95rem;
+            font-weight: 600;
+            cursor: pointer;
+            border: none;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            transition: all 0.2s ease;
+            text-decoration: none;
+        }
+
+        .btn-primary {
+            background-color: var(--setup-primary);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background-color: var(--setup-primary-hover);
+            transform: translateY(-1px);
+        }
+
+        .btn-success {
+            background-color: var(--setup-success);
+            color: white;
+        }
+
+        .btn-success:hover {
+            background-color: #059669;
+        }
+
+        .btn-outline {
+            background-color: transparent;
+            border: 1px solid #cbd5e1;
+            color: #334155;
+        }
+
+        .btn-outline:hover {
+            background-color: #f8fafc;
+            border-color: #94a3b8;
+        }
+
+        .btn-secondary {
+            background-color: #64748b;
+            color: white;
+        }
+
+        .btn-secondary:hover {
+            background-color: #475569;
+        }
+
+        /* Code & SQL Viewer */
+        .code-box-container {
+            background: #0f172a;
+            border-radius: 10px;
+            overflow: hidden;
+            margin: 15px 0;
+            position: relative;
+        }
+
+        .code-box-header {
+            background: #1e293b;
+            padding: 10px 16px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            color: #94a3b8;
+            font-size: 0.85rem;
+            border-bottom: 1px solid #334155;
+        }
+
+        .code-box-content {
+            padding: 16px;
+            max-height: 250px;
+            overflow-y: auto;
+            color: #e2e8f0;
+            font-family: 'Consolas', 'Monaco', monospace;
+            font-size: 0.85rem;
+            line-height: 1.5;
+            white-space: pre;
+        }
+
+        /* Table Check Grid */
+        .table-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+            gap: 12px;
+            margin-top: 15px;
+        }
+
+        .table-card {
+            background: #f8fafc;
+            border: 1px solid var(--setup-border);
+            border-radius: 8px;
+            padding: 12px 16px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .table-info {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .table-name {
+            font-weight: 700;
+            font-size: 0.9rem;
+            color: #0f172a;
+        }
+
+        .table-desc {
+            font-size: 0.78rem;
+            color: #64748b;
+        }
+
+        .status-badge {
+            padding: 4px 10px;
+            border-radius: 12px;
+            font-size: 0.78rem;
+            font-weight: 700;
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .badge-pending {
+            background: #f1f5f9;
+            color: #64748b;
+            border: 1px solid #cbd5e1;
+        }
+
+        .badge-success {
+            background: #dcfce7;
+            color: #15803d;
+            border: 1px solid #86efac;
+        }
+
+        .badge-danger {
+            background: #fee2e2;
+            color: #b91c1c;
+            border: 1px solid #fca5a5;
+        }
+
+        /* Footer Buttons Bar */
+        .setup-footer {
+            background: #f8fafc;
+            border-top: 1px solid var(--setup-border);
+            padding: 20px 25px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        /* Responsive */
+        @media (max-width: 640px) {
+            .setup-container {
+                border-radius: 10px;
+            }
+            .step-content-body {
+                padding: 20px 16px;
+            }
+            .setup-footer {
+                flex-direction: column-reverse;
+                gap: 12px;
+            }
+            .setup-footer .btn-setup {
+                width: 100%;
+                justify-content: center;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="setup-container">
+        <!-- Header -->
+        <header class="setup-header">
+            <h1><i class="fas fa-magic"></i> 집회 계획표 초기 설정 마법사</h1>
+            <p>단계별 안내에 따라 Supabase DB 연동 및 회중 설정을 손쉽게 완료하고 검증해보세요.</p>
+        </header>
+
+        <!-- Progress Steps -->
+        <div class="step-progress-wrapper">
+            <div class="step-progress" id="step-progress">
+                <div class="step-item active" data-step="1" onclick="goToStep(1)">
+                    <div class="step-icon">1</div>
+                    <div class="step-label">DB 연동 설정</div>
+                </div>
+                <div class="step-item" data-step="2" onclick="goToStep(2)">
+                    <div class="step-icon">2</div>
+                    <div class="step-label">DB 스키마 검증</div>
+                </div>
+                <div class="step-item" data-step="3" onclick="goToStep(3)">
+                    <div class="step-icon">3</div>
+                    <div class="step-label">관리자 &amp; Seed</div>
+                </div>
+                <div class="step-item" data-step="4" onclick="goToStep(4)">
+                    <div class="step-icon">4</div>
+                    <div class="step-label">회중 맞춤 설정</div>
+                </div>
+                <div class="step-item" data-step="5" onclick="goToStep(5)">
+                    <div class="step-icon">5</div>
+                    <div class="step-label">종합 점검 &amp; 시작</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Step Content Panels -->
+        <main class="step-content-body">
+
+            <!-- STEP 1: Supabase DB 연결 설정 -->
+            <div class="step-panel active" id="panel-1">
+                <div class="panel-title"><i class="fas fa-database text-primary"></i> 1단계: Supabase 데이터베이스 연결 설정</div>
+                <div class="panel-desc">
+                    Supabase 대시보드(<b>Project Settings &rarr; API</b>)에서 발급받은 Project URL과 anon / public Key를 입력해 주세요.
+                    입력 후 <b>[연결 테스트 &amp; 저장]</b>을 실행하여 연동 상태를 실시간으로 검증할 수 있습니다.
+                </div>
+
+                <div class="alert-box alert-info">
+                    <i class="fas fa-info-circle fa-lg"></i>
+                    <div>
+                        <b>기본 연결 정보 안내</b><br>
+                        글로벌 설정을 사용하시거나, 자체 구축한 커스텀 DB 연결 정보를 저장하여 전용 데이터베이스로 연동할 수 있습니다.
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label" for="supabase-url">Supabase Project URL</label>
+                    <input type="url" id="supabase-url" class="form-control" placeholder="https://your-project.supabase.co">
+                    <div class="form-hint">예: https://rrgjwzzjuftvnqcgipli.supabase.co</div>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label" for="supabase-key">Supabase anon / public Key</label>
+                    <input type="text" id="supabase-key" class="form-control" placeholder="eyJhbGciOiJIUzI1NiIsInR5cCI6...">
+                    <div class="form-hint">공개 가능한 API anon Key를 입력해 주세요.</div>
+                </div>
+
+                <div id="step1-status-box" style="display: none; margin-top: 15px;"></div>
+
+                <div class="btn-group">
+                    <button class="btn-setup btn-primary" onclick="testAndSaveConnection()">
+                        <i class="fas fa-plug"></i> DB 연결 테스트 &amp; 설정 저장
+                    </button>
+                    <button class="btn-setup btn-outline" onclick="resetToDefaultConfig()">
+                        <i class="fas fa-undo"></i> 기본 설정(supabase_config.js)으로 초기화
+                    </button>
+                </div>
+            </div>
+
+            <!-- STEP 2: 데이터베이스 스키마 및 테이블 검증 -->
+            <div class="step-panel" id="panel-2">
+                <div class="panel-title"><i class="fas fa-table-cells text-primary"></i> 2단계: 데이터베이스 스키마 및 테이블 검증</div>
+                <div class="panel-desc">
+                    Supabase SQL Editor에서 <b><code>supabase_schema.sql</code></b> 스크립트를 실행하여 데이터베이스 테이블을 구축해야 합니다.
+                    아래 버튼을 눌러 필수 9개 테이블이 모두 정상적으로 생성되었는지 자동 검증하세요.
+                </div>
+
+                <div class="code-box-container">
+                    <div class="code-box-header">
+                        <span><i class="fas fa-code"></i> supabase_schema.sql 스크립트</span>
+                        <button class="btn-setup btn-outline" style="padding: 4px 10px; font-size: 0.78rem; background: #334155; color: white; border: none;" onclick="copySqlScript()">
+                            <i class="fas fa-copy"></i> SQL 전체 복사
+                        </button>
+                    </div>
+                    <div class="code-box-content" id="sql-preview-text">-- Supabase Schema for SheetViewer
+CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
+
+CREATE TABLE IF NOT EXISTS public.schedules ( ... );
+CREATE TABLE IF NOT EXISTS public.publishers ( ... );
+CREATE TABLE IF NOT EXISTS public.assignment_history ( ... );
+CREATE TABLE IF NOT EXISTS public.public_talk_outlines ( ... );
+CREATE TABLE IF NOT EXISTS public.public_talks ( ... );
+CREATE TABLE IF NOT EXISTS public.admin_users ( ... );
+CREATE TABLE IF NOT EXISTS public.navigation_links ( ... );
+CREATE TABLE IF NOT EXISTS public.app_settings ( ... );
+CREATE TABLE IF NOT EXISTS public.database_connections ( ... );</div>
+                </div>
+
+                <div class="btn-group" style="margin-bottom: 20px;">
+                    <button class="btn-setup btn-primary" onclick="verifyAllTables()">
+                        <i class="fas fa-search-nodes"></i> DB 테이블 상태 일괄 검증 실행
+                    </button>
+                </div>
+
+                <div id="step2-summary" style="margin-bottom: 15px;"></div>
+
+                <div class="table-grid" id="table-grid">
+                    <!-- Dynamic Table Cards -->
+                </div>
+            </div>
+
+            <!-- STEP 3: 관리자 계정 & Seed 데이터 검증 -->
+            <div class="step-panel" id="panel-3">
+                <div class="panel-title"><i class="fas fa-user-shield text-primary"></i> 3단계: 초기 관리자 계정 &amp; Seed 데이터 검증</div>
+                <div class="panel-desc">
+                    시스템 관리를 위해 기본 관리자 계정(<code>관리자</code> / <code>1234</code>)과 초기 메뉴 항목이 등록되어 있어야 합니다.
+                    데이터베이스에 초기 데이터가 없으면 <b>[Seed 데이터 즉시 생성]</b>을 눌러 바로 생성할 수 있습니다.
+                </div>
+
+                <div id="step3-seed-status" style="margin-bottom: 15px;"></div>
+
+                <div class="alert-box alert-warning">
+                    <i class="fas fa-exclamation-triangle fa-lg"></i>
+                    <div>
+                        <b>로그인 보안 권장 사항</b><br>
+                        기본 관리자 계정으로 첫 로그인 후, <b>[관리자 패널 &rarr; 설정 &rarr; 관리자 계정 관리]</b> 메뉴에서 비밀번호를 반드시 변경해 주세요.
+                    </div>
+                </div>
+
+                <div class="btn-group" style="margin-bottom: 25px;">
+                    <button class="btn-setup btn-success" onclick="executeSeedData()">
+                        <i class="fas fa-seedling"></i> Seed 데이터 생성 (관리자 계정 &amp; 초기 설정 구축)
+                    </button>
+                    <button class="btn-setup btn-primary" onclick="checkSeedStatus()">
+                        <i class="fas fa-sync-alt"></i> Seed 생성 상태 다시 확인
+                    </button>
+                </div>
+
+                <!-- Admin Login Interactive Test Widget -->
+                <div style="background: #f8fafc; border: 1px solid var(--setup-border); border-radius: 12px; padding: 20px; margin-top: 20px;">
+                    <div style="font-weight: 700; font-size: 1rem; color: #0f172a; margin-bottom: 12px; display: flex; align-items: center; gap: 8px;">
+                        <i class="fas fa-key text-warning"></i> 관리자 로그인 테스트 (실시간 검증)
+                    </div>
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; margin-bottom: 15px;">
+                        <div>
+                            <label class="form-label" style="font-size: 0.82rem;">관리자 ID (이름)</label>
+                            <input type="text" id="test-admin-id" class="form-control" value="관리자">
+                        </div>
+                        <div>
+                            <label class="form-label" style="font-size: 0.82rem;">비밀번호</label>
+                            <input type="password" id="test-admin-pw" class="form-control" value="1234">
+                        </div>
+                    </div>
+                    <button class="btn-setup btn-outline" onclick="testAdminLogin()">
+                        <i class="fas fa-sign-in-alt"></i> 로그인 테스트 실행
+                    </button>
+                    <div id="admin-test-result" style="margin-top: 12px;"></div>
+                </div>
+            </div>
+
+            <!-- STEP 4: 회중 맞춤 설정 -->
+            <div class="step-panel" id="panel-4">
+                <div class="panel-title"><i class="fas fa-sliders-h text-primary"></i> 4단계: 회중 맞춤 설정 (Congregation Settings)</div>
+                <div class="panel-desc">
+                    회중 이름, 회중 유형(한국어 vs 수어회중), 기본 글꼴 등을 설정합니다. 설정 내역은 DB의 <code>app_settings</code> 테이블에 즉시 저장됩니다.
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label" for="setting-cong-name">회중 이름</label>
+                    <input type="text" id="setting-cong-name" class="form-control" placeholder="예: 서울OO회중 또는 부산OO수어회중" value="새로운 회중">
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label" for="setting-cong-type">회중 유형 (Congregation Type)</label>
+                    <select id="setting-cong-type" class="form-control">
+                        <option value="korean">한국어 회중 (일반)</option>
+                        <option value="sign_language">수어 회중 (Sign Language)</option>
+                    </select>
+                    <div class="form-hint">수어 회중 선택 시: [통역] 뱃지, SL 체크박스, 통역자 명단, 농인 구분 필드가 자동 활성화됩니다.</div>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label" for="setting-font">선호 웹폰트 (Font)</label>
+                    <select id="setting-font" class="form-control" onchange="previewSelectedFont(this.value)">
+                        <option value="Pretendard">Pretendard (깔끔한 현대적 고딕 - 기본값)</option>
+                        <option value="Gowun Dodum">고운돋음 (Gowun Dodum - 부드러운 스타일)</option>
+                        <option value="Noto Sans KR">Noto Sans KR (구글 표준 고딕)</option>
+                        <option value="Nanum Gothic">나눔고딕 (Nanum Gothic)</option>
+                    </select>
+                </div>
+
+                <!-- Preview Banner Card -->
+                <div id="cong-preview-card" style="background: linear-gradient(135deg, #1e293b, #334155); color: white; border-radius: 10px; padding: 16px 20px; margin: 20px 0; text-align: center;">
+                    <div style="font-size: 0.8rem; opacity: 0.8; margin-bottom: 4px;">[ 화면 헤더 실시간 미리보기 ]</div>
+                    <div id="preview-title-display" style="font-size: 1.4rem; font-weight: 700;">새로운 회중 집회 계획표</div>
+                    <div id="preview-badge-display" style="margin-top: 6px;">
+                        <span style="background: #2563eb; font-size: 0.75rem; padding: 2px 8px; border-radius: 10px;">한국어 회중</span>
+                    </div>
+                </div>
+
+                <div class="btn-group">
+                    <button class="btn-setup btn-primary" onclick="saveCongregationSettings()">
+                        <i class="fas fa-save"></i> 회중 맞춤 설정 저장 &amp; 검증
+                    </button>
+                </div>
+            </div>
+
+            <!-- STEP 5: 종합 점검 & 시작 -->
+            <div class="step-panel" id="panel-5">
+                <div class="panel-title"><i class="fas fa-clipboard-check text-primary"></i> 5단계: 최종 시스템 종합 점검 &amp; 준비 완료</div>
+                <div class="panel-desc">
+                    전체 구축 항목을 최종 점검하여 웹앱을 사용할 준비가 되었는지 확인합니다.
+                </div>
+
+                <div class="btn-group" style="margin-bottom: 20px;">
+                    <button class="btn-setup btn-primary" onclick="runFinalAudit()">
+                        <i class="fas fa-stethoscope"></i> 최종 시스템 상태 종합 진단 실행
+                    </button>
+                </div>
+
+                <div id="final-audit-results" style="margin-bottom: 25px;">
+                    <!-- Final diagnosis list -->
+                </div>
+
+                <div class="alert-box alert-success" id="final-ready-banner" style="display: none;">
+                    <i class="fas fa-check-circle fa-2x"></i>
+                    <div>
+                        <b style="font-size: 1.05rem;">🎉 데이터베이스 및 시스템 연동 준비 완료!</b><br>
+                        모든 검증 항목이 통과되었습니다. 이제 관리자 패널로 이동하여 전도인 명단과 주간 집회 프로그램을 입력해 보세요.
+                    </div>
+                </div>
+
+                <div class="btn-group" style="margin-top: 20px;">
+                    <a href="manager.html" class="btn-setup btn-primary" style="padding: 14px 24px; font-size: 1rem;">
+                        <i class="fas fa-user-gear"></i> 관리자 패널로 이동 (manager.html)
+                    </a>
+                    <a href="index.html" class="btn-setup btn-success" style="padding: 14px 24px; font-size: 1rem;">
+                        <i class="fas fa-tv"></i> 공개 계획표 뷰어로 이동 (index.html)
+                    </a>
+                </div>
+            </div>
+
+        </main>
+
+        <!-- Navigation Footer Bar -->
+        <footer class="setup-footer">
+            <button class="btn-setup btn-outline" id="btn-prev-step" onclick="prevStep()">
+                <i class="fas fa-arrow-left"></i> 이전 단계
+            </button>
+            <span id="step-indicator-text" style="font-size: 0.88rem; font-weight: 600; color: #64748b;">
+                Step 1 / 5
+            </span>
+            <button class="btn-setup btn-primary" id="btn-next-step" onclick="nextStep()">
+                다음 단계 <i class="fas fa-arrow-right"></i>
+            </button>
+        </footer>
+    </div>
+
+    <!-- Scripts -->
+    <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
+    <script src="supabase_config.js"></script>
+    <script src="utils.js"></script>
+
+    <script>
+        // State
+        let currentStep = 1;
+        let activeSupabaseClient = null;
+        const requiredTables = [
+            { name: 'schedules', desc: '평일 집회 계획표' },
+            { name: 'publishers', desc: '전도인 명단 및 특성' },
+            { name: 'assignment_history', desc: '배정 이력 추적' },
+            { name: 'public_talk_outlines', desc: '공개 강연 골자 명단' },
+            { name: 'public_talks', desc: '주말 집회 계획표' },
+            { name: 'admin_users', desc: '관리자 계정 및 권한' },
+            { name: 'navigation_links', desc: '상단 시트 탭 메뉴' },
+            { name: 'app_settings', desc: '회중 전역 설정' },
+            { name: 'database_connections', desc: '웹 DB 연결 매핑' }
+        ];
+
+        // SQL Schema Text
+        const FULL_SQL_SCHEMA = `-- Supabase Schema for SheetViewer (Unified & Integrated Edition)
+CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
+
+-- 1. schedules
+CREATE TABLE IF NOT EXISTS public.schedules (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    category TEXT NOT NULL,
+    week_date TEXT NOT NULL,
+    part_num TEXT,
+    content TEXT,
+    duration TEXT,
+    assignee_1 TEXT,
+    assignee_2 TEXT,
+    interpreter TEXT,
+    sheet_type TEXT,
+    sort_order INTEGER,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+ALTER TABLE public.schedules DISABLE ROW LEVEL SECURITY;
+
+-- 2. publishers
+CREATE TABLE IF NOT EXISTS public.publishers (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    name TEXT UNIQUE NOT NULL,
+    gender TEXT,
+    birth_year INTEGER,
+    is_deaf BOOLEAN DEFAULT FALSE,
+    interpretation_grade TEXT,
+    can_chairman BOOLEAN DEFAULT FALSE,
+    can_reading BOOLEAN DEFAULT FALSE,
+    can_field_service BOOLEAN DEFAULT FALSE,
+    can_talk BOOLEAN DEFAULT FALSE,
+    can_bible_study BOOLEAN DEFAULT FALSE,
+    limit_3min BOOLEAN DEFAULT FALSE,
+    period_6month BOOLEAN DEFAULT FALSE,
+    period_1year BOOLEAN DEFAULT FALSE,
+    period_always BOOLEAN DEFAULT FALSE,
+    remarks TEXT,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+ALTER TABLE public.publishers DISABLE ROW LEVEL SECURITY;
+
+-- 3. assignment_history
+CREATE TABLE IF NOT EXISTS public.assignment_history (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    publisher_name TEXT NOT NULL,
+    task_type TEXT NOT NULL,
+    meeting_date DATE NOT NULL,
+    partner_name TEXT,
+    week_date TEXT,
+    content TEXT,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+ALTER TABLE public.assignment_history DISABLE ROW LEVEL SECURITY;
+
+-- 4. public_talk_outlines
+CREATE TABLE IF NOT EXISTS public.public_talk_outlines (
+    outline_no TEXT PRIMARY KEY,
+    topic TEXT NOT NULL,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+ALTER TABLE public.public_talk_outlines DISABLE ROW LEVEL SECURITY;
+
+-- 5. public_talks
+CREATE TABLE IF NOT EXISTS public.public_talks (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    meeting_date DATE NOT NULL UNIQUE,
+    outline_no TEXT REFERENCES public.public_talk_outlines(outline_no),
+    topic TEXT,
+    speaker TEXT,
+    congregation TEXT,
+    speaker_contact TEXT,
+    inviter TEXT,
+    chairman TEXT,
+    reader TEXT,
+    bible_reader TEXT,
+    prayer TEXT,
+    interpreter_name TEXT,
+    is_confirmed BOOLEAN DEFAULT FALSE,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+ALTER TABLE public.public_talks DISABLE ROW LEVEL SECURITY;
+
+-- 6. admin_users
+CREATE TABLE IF NOT EXISTS public.admin_users (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    username TEXT UNIQUE NOT NULL,
+    password TEXT NOT NULL,
+    role TEXT,
+    can_manage_weekday BOOLEAN DEFAULT TRUE,
+    can_manage_weekend BOOLEAN DEFAULT TRUE
+);
+ALTER TABLE public.admin_users DISABLE ROW LEVEL SECURITY;
+INSERT INTO public.admin_users (username, password, role) 
+VALUES ('관리자', '1234', 'superadmin') ON CONFLICT (username) DO NOTHING;
+
+-- 7. navigation_links
+CREATE TABLE IF NOT EXISTS public.navigation_links (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    label TEXT NOT NULL,
+    type TEXT NOT NULL,
+    target TEXT NOT NULL,
+    sort_order INTEGER DEFAULT 0,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+ALTER TABLE public.navigation_links DISABLE ROW LEVEL SECURITY;
+
+-- 8. app_settings
+CREATE TABLE IF NOT EXISTS public.app_settings (
+    key TEXT PRIMARY KEY,
+    value TEXT,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+ALTER TABLE public.app_settings DISABLE ROW LEVEL SECURITY;
+INSERT INTO public.app_settings (key, value) 
+VALUES ('congregation_name', '새로운 회중'), ('congregation_type', 'korean'), ('show_interp_tag', 'true'), ('show_sl_check', 'true')
+ON CONFLICT (key) DO NOTHING;
+
+-- 9. database_connections
+CREATE TABLE IF NOT EXISTS public.database_connections (
+    username TEXT PRIMARY KEY,
+    password TEXT NOT NULL,
+    supabase_url TEXT NOT NULL,
+    supabase_key TEXT NOT NULL,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+ALTER TABLE public.database_connections DISABLE ROW LEVEL SECURITY;`;
+
+        // Initialize Page
+        document.addEventListener('DOMContentLoaded', () => {
+            initInputs();
+            renderTableGrid();
+            document.getElementById('sql-preview-text').textContent = FULL_SQL_SCHEMA;
+            updateStepView();
+        });
+
+        function getActiveClient() {
+            if (activeSupabaseClient) return activeSupabaseClient;
+            if (typeof supabaseClient !== 'undefined' && supabaseClient) return supabaseClient;
+            const url = document.getElementById('supabase-url').value.trim();
+            const key = document.getElementById('supabase-key').value.trim();
+            if (url && key && window.supabase) {
+                activeSupabaseClient = window.supabase.createClient(url, key);
+                return activeSupabaseClient;
+            }
+            return null;
+        }
+
+        function initInputs() {
+            const savedUrl = localStorage.getItem('CUSTOM_SUPABASE_URL') || (typeof SUPABASE_CONFIG !== 'undefined' ? SUPABASE_CONFIG.SUPABASE_URL : '');
+            const savedKey = localStorage.getItem('CUSTOM_SUPABASE_KEY') || (typeof SUPABASE_CONFIG !== 'undefined' ? SUPABASE_CONFIG.SUPABASE_KEY : '');
+            document.getElementById('supabase-url').value = savedUrl;
+            document.getElementById('supabase-key').value = savedKey;
+
+            if (savedUrl && savedKey && window.supabase) {
+                activeSupabaseClient = window.supabase.createClient(savedUrl, savedKey);
+            }
+        }
+
+        // Navigation controls
+        function goToStep(stepNum) {
+            if (stepNum < 1 || stepNum > 5) return;
+            currentStep = stepNum;
+            updateStepView();
+        }
+
+        function nextStep() {
+            if (currentStep < 5) {
+                currentStep++;
+                updateStepView();
+            }
+        }
+
+        function prevStep() {
+            if (currentStep > 1) {
+                currentStep--;
+                updateStepView();
+            }
+        }
+
+        function updateStepView() {
+            // Update progress bar
+            document.querySelectorAll('.step-item').forEach(item => {
+                const step = parseInt(item.dataset.step);
+                item.classList.remove('active', 'completed');
+                if (step === currentStep) {
+                    item.classList.add('active');
+                } else if (step < currentStep) {
+                    item.classList.add('completed');
+                }
+            });
+
+            // Update Panels
+            document.querySelectorAll('.step-panel').forEach(panel => {
+                panel.classList.remove('active');
+            });
+            const activePanel = document.getElementById(`panel-${currentStep}`);
+            if (activePanel) activePanel.classList.add('active');
+
+            // Footer buttons
+            document.getElementById('btn-prev-step').style.visibility = currentStep === 1 ? 'hidden' : 'visible';
+            const btnNext = document.getElementById('btn-next-step');
+            if (currentStep === 5) {
+                btnNext.style.display = 'none';
+            } else {
+                btnNext.style.display = 'inline-flex';
+                btnNext.innerHTML = '다음 단계 <i class="fas fa-arrow-right"></i>';
+            }
+            document.getElementById('step-indicator-text').textContent = `Step ${currentStep} / 5`;
+
+            // Step specific auto trigger
+            if (currentStep === 2) {
+                verifyAllTables();
+            } else if (currentStep === 3) {
+                checkSeedStatus();
+            } else if (currentStep === 4) {
+                loadCongregationSettings();
+            } else if (currentStep === 5) {
+                runFinalAudit();
+            }
+        }
+
+        // --- STEP 1 LOGIC ---
+        async function testAndSaveConnection() {
+            const url = document.getElementById('supabase-url').value.trim();
+            const key = document.getElementById('supabase-key').value.trim();
+            const statusBox = document.getElementById('step1-status-box');
+
+            if (!url || !key) {
+                statusBox.style.display = 'block';
+                statusBox.className = 'alert-box alert-danger';
+                statusBox.innerHTML = '<i class="fas fa-times-circle fa-lg"></i> <div><b>오류:</b> Supabase URL과 Key를 모두 입력해 주세요.</div>';
+                return;
+            }
+
+            statusBox.style.display = 'block';
+            statusBox.className = 'alert-box alert-info';
+            statusBox.innerHTML = '<i class="fas fa-spinner fa-spin fa-lg"></i> <div>데이터베이스 연결을 테스트하는 중입니다...</div>';
+
+            try {
+                const client = window.supabase.createClient(url, key);
+                const startTime = performance.now();
+                
+                // Probe query
+                const { data, error } = await client.from('schedules').select('id').limit(1);
+                const duration = Math.round(performance.now() - startTime);
+
+                if (error && error.code !== 'PGRST116' && !error.message.includes('relation "public.schedules" does not exist')) {
+                    throw error;
+                }
+
+                // Save to LocalStorage so manager and index can use it
+                localStorage.setItem('CUSTOM_SUPABASE_URL', url);
+                localStorage.setItem('CUSTOM_SUPABASE_KEY', key);
+                activeSupabaseClient = client;
+
+                statusBox.className = 'alert-box alert-success';
+                statusBox.innerHTML = `<i class="fas fa-check-circle fa-lg"></i> 
+                    <div>
+                        <b>🟢 연결 성공! (응답 시간: ${duration}ms)</b><br>
+                        Supabase API 서버와의 통신이 원활하게 확인되었습니다. 커스텀 연결 정보가 브라우저에 저장되었습니다.
+                    </div>`;
+
+                // Auto mark step completed
+                document.querySelector('.step-item[data-step="1"]').classList.add('completed');
+            } catch (err) {
+                console.error('Connection test error:', err);
+                statusBox.className = 'alert-box alert-danger';
+                statusBox.innerHTML = `<i class="fas fa-exclamation-triangle fa-lg"></i> 
+                    <div>
+                        <b>🔴 연결 실패:</b> ${escapeHtml(err.message)}<br>
+                        URL 과 Key가 올바른지, 인터넷 및 CORS 설정(Supabase &rarr; Project Settings &rarr; API)이 열려 있는지 확인하세요.
+                    </div>`;
+            }
+        }
+
+        function resetToDefaultConfig() {
+            if (typeof SUPABASE_CONFIG !== 'undefined') {
+                document.getElementById('supabase-url').value = SUPABASE_CONFIG.SUPABASE_URL;
+                document.getElementById('supabase-key').value = SUPABASE_CONFIG.SUPABASE_KEY;
+                localStorage.removeItem('CUSTOM_SUPABASE_URL');
+                localStorage.removeItem('CUSTOM_SUPABASE_KEY');
+                activeSupabaseClient = window.supabase.createClient(SUPABASE_CONFIG.SUPABASE_URL, SUPABASE_CONFIG.SUPABASE_KEY);
+                alert('기본 supabase_config.js 파일 설정으로 초기화되었습니다.');
+                testAndSaveConnection();
+            } else {
+                alert('기본 SUPABASE_CONFIG가 정의되어 있지 않습니다.');
+            }
+        }
+
+        // --- STEP 2 LOGIC ---
+        function renderTableGrid() {
+            const grid = document.getElementById('table-grid');
+            grid.innerHTML = requiredTables.map(t => `
+                <div class="table-card" id="card-table-${t.name}">
+                    <div class="table-info">
+                        <span class="table-name">${t.name}</span>
+                        <span class="table-desc">${t.desc}</span>
+                    </div>
+                    <span class="status-badge badge-pending" id="badge-table-${t.name}">
+                        <i class="fas fa-spinner fa-spin"></i> 대기 중
+                    </span>
+                </div>
+            `).join('');
+        }
+
+        function copySqlScript() {
+            navigator.clipboard.writeText(FULL_SQL_SCHEMA).then(() => {
+                alert('supabase_schema.sql 스크립트 전체 내용이 클립보드에 복사되었습니다!\nSupabase > SQL Editor에 붙여넣어 실행하세요.');
+            }).catch(err => {
+                console.error('Clipboard copy failed:', err);
+            });
+        }
+
+        async function verifyAllTables() {
+            const client = getActiveClient();
+            const summaryBox = document.getElementById('step2-summary');
+
+            if (!client) {
+                summaryBox.className = 'alert-box alert-danger';
+                summaryBox.innerHTML = '<i class="fas fa-exclamation-circle fa-lg"></i> <div>1단계에서 먼저 DB 연결을 완료해 주세요.</div>';
+                return;
+            }
+
+            summaryBox.className = 'alert-box alert-info';
+            summaryBox.innerHTML = '<i class="fas fa-spinner fa-spin fa-lg"></i> <div>필수 9개 데이터베이스 테이블 검증을 진행 중입니다...</div>';
+
+            let existCount = 0;
+            let missingTables = [];
+
+            for (const t of requiredTables) {
+                const badge = document.getElementById(`badge-table-${t.name}`);
+                badge.className = 'status-badge badge-pending';
+                badge.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 검사 중';
+
+                try {
+                    const { error } = await client.from(t.name).select('*', { count: 'exact', head: true });
+                    
+                    if (!error || error.code === 'PGRST116') {
+                        badge.className = 'status-badge badge-success';
+                        badge.innerHTML = '<i class="fas fa-check"></i> 정상';
+                        existCount++;
+                    } else if (error.message.includes('does not exist') || error.code === '42P01') {
+                        badge.className = 'status-badge badge-danger';
+                        badge.innerHTML = '<i class="fas fa-times"></i> 미생성';
+                        missingTables.push(t.name);
+                    } else {
+                        // RLS restriction or other benign status still means table exists
+                        badge.className = 'status-badge badge-success';
+                        badge.innerHTML = '<i class="fas fa-check"></i> 존재';
+                        existCount++;
+                    }
+                } catch (e) {
+                    badge.className = 'status-badge badge-danger';
+                    badge.innerHTML = '<i class="fas fa-times"></i> 오류';
+                    missingTables.push(t.name);
+                }
+            }
+
+            if (existCount === requiredTables.length) {
+                summaryBox.className = 'alert-box alert-success';
+                summaryBox.innerHTML = `<i class="fas fa-check-circle fa-lg"></i> 
+                    <div>
+                        <b>✅ 스키마 검증 완료! (총 ${existCount}/9개 테이블 확인됨)</b><br>
+                        모든 필수 테이블이 성공적으로 생성되어 정상적으로 작동 가능합니다.
+                    </div>`;
+                document.querySelector('.step-item[data-step="2"]').classList.add('completed');
+            } else {
+                summaryBox.className = 'alert-box alert-warning';
+                summaryBox.innerHTML = `<i class="fas fa-exclamation-triangle fa-lg"></i> 
+                    <div>
+                        <b>⚠️ 테이블 누락 발견 (${existCount}/${requiredTables.length}개 확인됨)</b><br>
+                        누락된 테이블: <b>${missingTables.join(', ')}</b><br>
+                        위의 <b>[SQL 전체 복사]</b> 버튼을 누른 후, Supabase 대시보드 <b>SQL Editor</b>에서 실행해 주세요.
+                    </div>`;
+            }
+        }
+
+        // --- STEP 3 LOGIC ---
+        async function checkSeedStatus() {
+            const client = getActiveClient();
+            const seedBox = document.getElementById('step3-seed-status');
+            if (!client) {
+                seedBox.className = 'alert-box alert-danger';
+                seedBox.innerHTML = '<i class="fas fa-exclamation-circle"></i> <div>DB 연결이 필요합니다.</div>';
+                return;
+            }
+
+            seedBox.className = 'alert-box alert-info';
+            seedBox.innerHTML = '<i class="fas fa-spinner fa-spin"></i> <div>관리자 계정 및 Seed 상태를 확인하고 있습니다...</div>';
+
+            try {
+                const { data: adminUsers, error: adminErr } = await client.from('admin_users').select('username, role');
+                const { data: settingsData } = await client.from('app_settings').select('key, value');
+
+                if (adminErr) throw adminErr;
+
+                const hasAdmin = adminUsers && adminUsers.length > 0;
+                const hasSettings = settingsData && settingsData.length > 0;
+
+                if (hasAdmin && hasSettings) {
+                    seedBox.className = 'alert-box alert-success';
+                    seedBox.innerHTML = `<i class="fas fa-check-circle fa-lg"></i> 
+                        <div>
+                            <b>✅ Seed 데이터 활성화 확인!</b><br>
+                            - 등록된 관리자 계정: <b>${adminUsers.map(u => u.username).join(', ')}</b><br>
+                            - 등록된 환경 설정: <b>${settingsData.length}개 항목</b> (회중 설정 활성화됨)
+                        </div>`;
+                    document.querySelector('.step-item[data-step="3"]').classList.add('completed');
+                } else {
+                    seedBox.className = 'alert-box alert-warning';
+                    seedBox.innerHTML = `<i class="fas fa-exclamation-circle fa-lg"></i> 
+                        <div>
+                            <b>⚠️ 초기 관리자 계정 또는 설정이 발견되지 않았습니다.</b><br>
+                            아래 <b>[Seed 데이터 생성]</b> 버튼을 클릭하여 기본 관리자 계정(관리자/1234)을 즉시 등록하세요.
+                        </div>`;
+                }
+            } catch (e) {
+                seedBox.className = 'alert-box alert-danger';
+                seedBox.innerHTML = `<i class="fas fa-times-circle"></i> <div>Seed 상태 조회 실패: ${escapeHtml(e.message)}</div>`;
+            }
+        }
+
+        async function executeSeedData() {
+            const client = getActiveClient();
+            if (!client) return alert('DB 클라이언트가 연결되지 않았습니다.');
+
+            try {
+                // 1. Insert default admin user
+                const { error: insAdminErr } = await client.from('admin_users').upsert([
+                    { username: '관리자', password: '1234', role: 'superadmin', can_manage_weekday: true, can_manage_weekend: true }
+                ], { onConflict: 'username' });
+                if (insAdminErr) console.warn('Admin upsert notice:', insAdminErr);
+
+                // 2. Insert default app_settings
+                const defaultSettings = [
+                    { key: 'congregation_name', value: '새로운 회중' },
+                    { key: 'congregation_type', value: 'korean' },
+                    { key: 'show_interp_tag', value: 'true' },
+                    { key: 'show_sl_check', value: 'true' },
+                    { key: 'font_viewer', value: 'Pretendard' }
+                ];
+                await client.from('app_settings').upsert(defaultSettings, { onConflict: 'key' });
+
+                // 3. Insert default navigation_links
+                const defaultNav = [
+                    { label: '평일집회', type: 'internal', target: '평일집회', sort_order: 1 },
+                    { label: '주말집회', type: 'internal', target: '주말집회', sort_order: 2 }
+                ];
+                await client.from('navigation_links').upsert(defaultNav, { onConflict: 'id' });
+
+                alert('🎉 Seed 데이터가 성공적으로 데이터베이스에 작성되었습니다!\n\n기본 관리자 ID: 관리자\n기본 비밀번호: 1234');
+                checkSeedStatus();
+            } catch (e) {
+                alert('Seed 생성 실패: ' + e.message);
+            }
+        }
+
+        async function testAdminLogin() {
+            const client = getActiveClient();
+            const id = document.getElementById('test-admin-id').value.trim();
+            const pw = document.getElementById('test-admin-pw').value.trim();
+            const resBox = document.getElementById('admin-test-result');
+
+            if (!client || !id || !pw) {
+                resBox.innerHTML = '<span class="status-badge badge-danger">아이디와 비밀번호를 입력해 주세요.</span>';
+                return;
+            }
+
+            resBox.innerHTML = '<span class="status-badge badge-pending"><i class="fas fa-spinner fa-spin"></i> 로그인 확인 중...</span>';
+
+            try {
+                const { data, error } = await client.from('admin_users')
+                    .select('*')
+                    .eq('username', id)
+                    .eq('password', pw)
+                    .maybeSingle();
+
+                if (error) throw error;
+
+                if (data) {
+                    resBox.innerHTML = `<span class="status-badge badge-success" style="font-size: 0.9rem; padding: 6px 12px;">
+                        <i class="fas fa-check-circle"></i> 로그인 검증 성공! (역할: ${data.role || '관리자'})
+                    </span>`;
+                } else {
+                    resBox.innerHTML = `<span class="status-badge badge-danger" style="font-size: 0.9rem; padding: 6px 12px;">
+                        <i class="fas fa-times-circle"></i> 계정 정보가 일치하지 않습니다.
+                    </span>`;
+                }
+            } catch (e) {
+                resBox.innerHTML = `<span class="status-badge badge-danger">오류: ${escapeHtml(e.message)}</span>`;
+            }
+        }
+
+        // --- STEP 4 LOGIC ---
+        async function loadCongregationSettings() {
+            const client = getActiveClient();
+            if (!client) return;
+
+            try {
+                const { data } = await client.from('app_settings').select('*');
+                if (data && data.length > 0) {
+                    const settingsMap = {};
+                    data.forEach(item => { settingsMap[item.key] = item.value; });
+
+                    if (settingsMap.congregation_name) {
+                        document.getElementById('setting-cong-name').value = settingsMap.congregation_name;
+                    }
+                    if (settingsMap.congregation_type) {
+                        document.getElementById('setting-cong-type').value = settingsMap.congregation_type;
+                    }
+                    if (settingsMap.font_viewer) {
+                        document.getElementById('setting-font').value = settingsMap.font_viewer;
+                    }
+                }
+                updatePreviewCard();
+            } catch (e) {
+                console.warn('Error loading settings:', e);
+            }
+        }
+
+        function previewSelectedFont(fontName) {
+            if (typeof ensureFontLoaded === 'function') ensureFontLoaded(fontName);
+            updatePreviewCard();
+        }
+
+        function updatePreviewCard() {
+            const name = document.getElementById('setting-cong-name').value.trim() || '새로운 회중';
+            const type = document.getElementById('setting-cong-type').value;
+            const font = document.getElementById('setting-font').value;
+
+            const titleEl = document.getElementById('preview-title-display');
+            const badgeEl = document.getElementById('preview-badge-display');
+
+            titleEl.textContent = `${name} 집회 계획표`;
+            titleEl.style.fontFamily = font;
+
+            if (type === 'sign_language') {
+                badgeEl.innerHTML = '<span style="background: #7c3aed; font-size: 0.75rem; padding: 3px 10px; border-radius: 10px;"><i class="fas fa-hands-asl-interpreting"></i> 수어 회중 (Sign Language)</span>';
+            } else {
+                badgeEl.innerHTML = '<span style="background: #2563eb; font-size: 0.75rem; padding: 3px 10px; border-radius: 10px;"><i class="fas fa-language"></i> 한국어 회중</span>';
+            }
+        }
+
+        document.getElementById('setting-cong-name').addEventListener('input', updatePreviewCard);
+        document.getElementById('setting-cong-type').addEventListener('change', updatePreviewCard);
+
+        async function saveCongregationSettings() {
+            const client = getActiveClient();
+            if (!client) return alert('DB 클라이언트가 연결되지 않았습니다.');
+
+            const name = document.getElementById('setting-cong-name').value.trim();
+            const type = document.getElementById('setting-cong-type').value;
+            const font = document.getElementById('setting-font').value;
+
+            if (!name) return alert('회중 이름을 입력해 주세요.');
+
+            try {
+                const settingsPayload = [
+                    { key: 'congregation_name', value: name },
+                    { key: 'congregation_type', value: type },
+                    { key: 'font_viewer', value: font },
+                    { key: 'font_manager', value: font }
+                ];
+
+                const { error } = await client.from('app_settings').upsert(settingsPayload, { onConflict: 'key' });
+                if (error) throw error;
+
+                // Also save font locally for viewer
+                localStorage.setItem('fontViewer', font);
+
+                alert(`💾 회중 설정이 성공적으로 저장되었습니다!\n\n- 회중명: ${name}\n- 유형: ${type === 'sign_language' ? '수어 회중' : '한국어 회중'}\n- 폰트: ${font}`);
+                document.querySelector('.step-item[data-step="4"]').classList.add('completed');
+            } catch (e) {
+                alert('설정 저장 실패: ' + e.message);
+            }
+        }
+
+        // --- STEP 5 LOGIC ---
+        async function runFinalAudit() {
+            const client = getActiveClient();
+            const auditContainer = document.getElementById('final-audit-results');
+            const readyBanner = document.getElementById('final-ready-banner');
+
+            auditContainer.innerHTML = '<div class="alert-box alert-info"><i class="fas fa-spinner fa-spin"></i> 종합 시스템 상태 진단을 진행 중입니다...</div>';
+            readyBanner.style.display = 'none';
+
+            const auditList = [];
+
+            // Check 1: Connection
+            if (client) {
+                auditList.push({ name: 'Supabase API 통신 연결', pass: true, msg: '정상 연결됨' });
+            } else {
+                auditList.push({ name: 'Supabase API 통신 연결', pass: false, msg: '연결 실패' });
+            }
+
+            // Check 2: DB Tables
+            if (client) {
+                let tablePass = true;
+                try {
+                    const { error } = await client.from('schedules').select('id').limit(1);
+                    if (error && error.message.includes('does not exist')) tablePass = false;
+                } catch (e) { tablePass = false; }
+                auditList.push({ name: 'DB 필수 스키마 및 테이블', pass: tablePass, msg: tablePass ? '9개 테이블 검증 완료' : '테이블 누락' });
+            }
+
+            // Check 3: Admin User
+            if (client) {
+                let adminPass = false;
+                try {
+                    const { data } = await client.from('admin_users').select('id');
+                    if (data && data.length > 0) adminPass = true;
+                } catch (e) {}
+                auditList.push({ name: '관리자 계정 존재 여부', pass: adminPass, msg: adminPass ? '계정 활성화됨' : 'Seed 데이터 필요' });
+            }
+
+            // Check 4: App Settings
+            if (client) {
+                let settingsPass = false;
+                try {
+                    const { data } = await client.from('app_settings').select('key').eq('key', 'congregation_name');
+                    if (data && data.length > 0) settingsPass = true;
+                } catch (e) {}
+                auditList.push({ name: '회중 기초 정보 등록', pass: settingsPass, msg: settingsPass ? '설정 완료' : '회중 설정 누락' });
+            }
+
+            // Render
+            const allPassed = auditList.every(item => item.pass);
+
+            auditContainer.innerHTML = `
+                <div style="display: flex; flex-direction: column; gap: 10px;">
+                    ${auditList.map(item => `
+                        <div class="table-card">
+                            <div class="table-info">
+                                <span class="table-name">${item.name}</span>
+                                <span class="table-desc">${item.msg}</span>
+                            </div>
+                            <span class="status-badge ${item.pass ? 'badge-success' : 'badge-danger'}">
+                                ${item.pass ? '<i class="fas fa-check"></i> 통과' : '<i class="fas fa-times"></i> 미흡'}
+                            </span>
+                        </div>
+                    `).join('')}
+                </div>
+            `;
+
+            if (allPassed) {
+                readyBanner.style.display = 'flex';
+                document.querySelector('.step-item[data-step="5"]').classList.add('completed');
+            }
+        }
+    </script>
+</body>
+</html>

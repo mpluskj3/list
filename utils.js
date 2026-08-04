@@ -3,7 +3,9 @@ const defaultKey = typeof SUPABASE_CONFIG !== 'undefined' ? SUPABASE_CONFIG.SUPA
 
 let defaultSupabaseClient = null;
 if (window.supabase) {
-    defaultSupabaseClient = window.supabase.createClient(defaultUrl, defaultKey);
+    defaultSupabaseClient = window.supabase.createClient(defaultUrl, defaultKey, {
+        auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false }
+    });
 }
 
 const CUSTOM_SUPABASE_URL = localStorage.getItem('CUSTOM_SUPABASE_URL') || sessionStorage.getItem('SESSION_SUPABASE_URL');
@@ -20,6 +22,24 @@ let supabaseClient = null;
 if (window.supabase) {
     supabaseClient = window.supabase.createClient(APP_CONFIG.SUPABASE_URL, APP_CONFIG.SUPABASE_KEY);
 }
+
+// 회중 기본 항목/기초 데이터 기본값
+const DEFAULT_MASTER_ITEMS = {
+    weekday_categories: [
+        { key: 'top', label: '시작 및 기도' },
+        { key: 'treasures', label: '보물 탐구' },
+        { key: 'ministry', label: '야외 봉사 전념' },
+        { key: 'living', label: '그리스도인 생활' }
+    ],
+    task_types: [
+        { key: 'chairman', label: '집회 사회' },
+        { key: 'reading', label: '성경 낭독' },
+        { key: 'speaker', label: '공개 강연' },
+        { key: 'interpreter', label: '수어 통역' },
+        { key: 'prayer', label: '기도' }
+    ],
+    interpretation_grades: ['A', 'B', 'C', 'D']
+};
 
 // 헬퍼 함수: URL 파라미터 또는 세션 저장소를 확인하여 custom database 연결 정보 적용
 async function checkAndApplyCustomDatabase() {
@@ -178,5 +198,3 @@ function applyFontToBody(fontName) {
     }
     document.body.style.fontFamily = fontFamily;
 }
-
-

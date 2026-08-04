@@ -2,8 +2,35 @@
 <html lang="ko">
 
 <head>
-    <link href="https://fonts.googleapis.com/css2?family=Pretendard:wght@300;400;500;600;700&display=swap"
-        rel="stylesheet">
+    <script>
+        (function() {
+            const cachedFont = localStorage.getItem('fontManager') || 'Pretendard';
+            const fontCdnMap = {
+                'Pretendard': "https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.css",
+                'Noto Sans KR': "https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700;800&display=swap",
+                'Nanum Gothic': "https://fonts.googleapis.com/css2?family=Nanum+Gothic:wght@400;700;800&display=swap",
+                'Nanum Myeongjo': "https://fonts.googleapis.com/css2?family=Nanum+Myeongjo:wght@400;700;800&display=swap",
+                'Gowun Dodum': "https://fonts.googleapis.com/css2?family=Gowun+Dodum&display=swap"
+            };
+            const fontFamilyMap = {
+                'Pretendard': "'Pretendard', -apple-system, BlinkMacSystemFont, system-ui, sans-serif",
+                'Noto Sans KR': "'Noto Sans KR', sans-serif",
+                'Nanum Gothic': "'Nanum Gothic', sans-serif",
+                'Nanum Myeongjo': "'Nanum Myeongjo', serif",
+                'Gowun Dodum': "'Gowun Dodum', sans-serif"
+            };
+            if (fontCdnMap[cachedFont]) {
+                const link = document.createElement('link');
+                link.id = `font-link-${cachedFont.replace(/\s/g, '-')}`;
+                link.rel = 'stylesheet';
+                link.href = fontCdnMap[cachedFont];
+                document.head.appendChild(link);
+            }
+            const style = document.createElement('style');
+            style.textContent = `body { font-family: ${fontFamilyMap[cachedFont]} !important; }`;
+            document.head.appendChild(style);
+        })();
+    </script>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>집회 관리자 패널</title>
@@ -1066,24 +1093,7 @@
                 <input type="password" id="admin-pw" placeholder="비밀번호를 입력하세요">
             </div>
             <button id="btn-login" class="btn-login">로그인</button>
-            <div style="text-align: center; margin-top: 15px;">
-                <a href="#" onclick="toggleLoginSetup(event)" style="font-size: 0.78rem; color: var(--gray-500); text-decoration: none;">
-                    <i class="fas fa-database"></i> Supabase 설정 변경
-                </a>
-            </div>
-            <div id="login-setup-form" style="display: none; margin-top: 15px; padding-top: 15px; border-top: 1px solid var(--gray-200);">
-                <div class="form-group" style="margin-bottom: 10px;">
-                    <label style="font-size: 0.75rem;">Supabase URL</label>
-                    <input type="text" id="login-supabase-url" style="padding: 8px 10px; font-size: 0.8rem;" placeholder="https://your-project.supabase.co">
-                </div>
-                <div class="form-group" style="margin-bottom: 15px;">
-                    <label style="font-size: 0.75rem;">Supabase Key (Service Role Key)</label>
-                    <input type="password" id="login-supabase-key" style="padding: 8px 10px; font-size: 0.8rem;" placeholder="your-service-role-key">
-                </div>
-                <div style="display: flex; gap: 6px; justify-content: flex-end;">
-                    <button onclick="saveLoginSupabase()" class="btn btn-primary" style="padding: 5px 12px; font-size: 0.75rem;">설정 저장</button>
-                </div>
-            </div>
+        </div>
         </div>
     </div>
 
@@ -1194,7 +1204,7 @@
             </div>
 
             <div class="table-scroll-container">
-                <table class="data-table" id="weekday-data-table">
+                <table class="data-table" id="weekday-data-table" style="font-size:0.8rem; table-layout:fixed; min-width:800px; width:100%;">
                     <thead>
                         <tr><!-- JS에서 자동 생성됨 --></tr>
                     </thead>
@@ -1279,22 +1289,24 @@
             </div>
 
             <div class="table-scroll-container">
-                <table class="data-table" id="weekend-data-table" style="font-size:0.8rem; table-layout:fixed;">
+                <table class="data-table" id="weekend-data-table" style="font-size:0.8rem; table-layout:fixed; min-width:1200px; width:100%;">
                     <thead>
                         <tr>
                             <th style="width:30px;"><input type="checkbox" id="check-all-weekend"></th>
-                            <th style="width:90px;">날짜</th>
-                            <th style="width:50px;">골자</th>
-                            <th style="width:260px;">주제</th>
-                            <th style="width:85px;">연사</th>
-                            <th style="width:100px;">회중</th>
-                            <th style="width:105px;">연사 연락처</th>
-                            <th style="width:80px;">초대자</th>
-                            <th style="width:80px;">사회</th>
-                            <th style="width:80px;">파수대</th>
-                            <th style="width:80px;">낭독</th>
-                            <th style="width:80px;">기도</th>
-                            <th style="width:85px;">관리</th>
+                            <th style="width:95px; text-align:center;">날짜</th>
+                            <th style="width:60px; text-align:center;">골자</th>
+                            <th style="width:240px;">주제</th>
+                            <th style="width:40px;" class="sl-col-check" title="수어(SL) 확인">SL</th>
+                            <th style="width:80px;">연사</th>
+                            <th style="width:90px;">회중</th>
+                            <th style="width:95px;">연사 연락처</th>
+                            <th style="width:75px;">초대자</th>
+                            <th style="width:75px;">사회</th>
+                            <th style="width:75px;" class="sl-col-interp">수어통역</th>
+                            <th style="width:75px;">파수대</th>
+                            <th style="width:75px;">낭독</th>
+                            <th style="width:75px;">기도</th>
+                            <th style="width:130px;">관리</th>
                         </tr>
                     </thead>
                     <tbody><!-- 동적 데이터 생성 --></tbody>
@@ -1435,51 +1447,115 @@
         <!-- ────────────────────────────────── -->
         <div id="menu-settings-tab" class="tab-content" style="display:none;">
             <div class="settings-tab-inner">
-                <!-- 기본 설정 -->
+                <!-- 1. 기본 설정 및 기초 데이터 관리 (통합 카드) -->
                 <div class="settings-card">
-                    <h3><span class="badge-num">1</span> 기본 설정 및 글꼴 관리</h3>
+                    <h3><span class="badge-num">1</span> 기본 설정 및 기초 데이터 관리</h3>
+                    <p class="settings-note">회중명, 회중 유형, 시스템 글꼴 및 대분류/직무/통역 등급 기초 데이터를 한 곳에서 통합 관리합니다.</p>
                     
-                    <div class="field-group" style="margin-bottom: 16px;">
-                        <label for="congregation-name-input"
-                            style="font-size:0.82rem; font-weight:600; color:var(--gray-600); white-space:nowrap; min-width:100px;">회중명</label>
-                        <input type="text" id="congregation-name-input" class="field" placeholder="예: 서울역"
-                            style="max-width:280px;">
+                    <!-- 회중 정보 & 유형 선택 -->
+                    <div style="margin-bottom: 16px;">
+                        <div class="field-group" style="margin-bottom: 12px;">
+                            <label for="congregation-name-input"
+                                style="font-size:0.82rem; font-weight:600; color:var(--gray-600); white-space:nowrap; min-width:110px;">회중명</label>
+                            <input type="text" id="congregation-name-input" class="field" placeholder="예: 서울역"
+                                style="max-width:280px;">
+                        </div>
+
+                        <!-- 회중 유형 선택 (한국어 회중 vs 수어 회중) -->
+                        <div class="field-group" style="background: var(--gray-50); padding: 12px; border-radius: var(--radius-sm); border: 1px solid var(--border);">
+                            <label for="congregation-type-select"
+                                style="font-size:0.82rem; font-weight:700; color:var(--gray-800); white-space:nowrap; min-width:110px;">회중 유형 선택</label>
+                            <select id="congregation-type-select" class="field" style="max-width:280px; height: 38px; padding: 6px 12px; border-radius: 6px; font-weight: 600;">
+                                <option value="korean">한국어 회중 (기본)</option>
+                                <option value="sign_language">수어 회중 (Sign Language)</option>
+                            </select>
+                            <span style="font-size:0.75rem; color:var(--gray-500); margin-left:8px;">* 회중 성격에 맞게 시스템 모드를 전환합니다.</span>
+                        </div>
                     </div>
 
-                    <!-- 프로그램 뷰어 글꼴 -->
-                    <div class="field-group" style="margin-bottom: 16px;">
-                        <label for="font-viewer-select"
-                            style="font-size:0.82rem; font-weight:600; color:var(--gray-600); white-space:nowrap; min-width:100px;">뷰어 글꼴</label>
-                        <select id="font-viewer-select" class="field" style="max-width:280px; height: 38px; padding: 6px 12px; border-radius: 6px;">
-                            <option value="Pretendard">Pretendard (기본)</option>
-                            <option value="Gowun Dodum">고운돋음 (Gowun Dodum)</option>
-                            <option value="Noto Sans KR">본고딕 (Noto Sans KR)</option>
-                            <option value="Nanum Gothic">나눔고딕 (Nanum Gothic)</option>
-                        </select>
+                    <!-- 수어회중 세부 설정 옵션 -->
+                    <div id="sign-language-options-box" style="margin-bottom: 16px; padding: 12px; background: rgba(59, 130, 246, 0.05); border: 1px solid rgba(59, 130, 246, 0.2); border-radius: var(--radius-sm);">
+                        <div style="font-size: 0.8rem; font-weight: 700; color: var(--primary); margin-bottom: 8px;">
+                            <i class="fas fa-deaf"></i> 수어회중 맞춤 기능 설정
+                        </div>
+                        <div style="display: flex; flex-direction: column; gap: 8px;">
+                            <label style="display: flex; align-items: center; gap: 8px; font-size: 0.78rem; cursor: pointer;">
+                                <input type="checkbox" id="opt-show-interp-tag" checked style="width: 16px; height: 16px;">
+                                <span>배정 이름에 '통역' 접두어/뱃지 표시</span>
+                            </label>
+                            <label style="display: flex; align-items: center; gap: 8px; font-size: 0.78rem; cursor: pointer;">
+                                <input type="checkbox" id="opt-show-sl-check" checked style="width: 16px; height: 16px;">
+                                <span>주말집회 SL(수어) 체크박스 표시</span>
+                            </label>
+                            <label style="display: flex; align-items: center; gap: 8px; font-size: 0.78rem; cursor: pointer;">
+                                <input type="checkbox" id="opt-show-interp-column" checked style="width: 16px; height: 16px;">
+                                <span>수어 통역 항목 및 통역자 성함 표시</span>
+                            </label>
+                        </div>
                     </div>
 
-                    <!-- 관리자 메뉴 글꼴 -->
-                    <div class="field-group" style="margin-bottom: 16px;">
-                        <label for="font-manager-select"
-                            style="font-size:0.82rem; font-weight:600; color:var(--gray-600); white-space:nowrap; min-width:100px;">관리자 글꼴</label>
-                        <select id="font-manager-select" class="field" style="max-width:280px; height: 38px; padding: 6px 12px; border-radius: 6px;">
-                            <option value="Pretendard">Pretendard (기본)</option>
-                            <option value="Gowun Dodum">고운돋음 (Gowun Dodum)</option>
-                            <option value="Noto Sans KR">본고딕 (Noto Sans KR)</option>
-                            <option value="Nanum Gothic">나눔고딕 (Nanum Gothic)</option>
-                        </select>
+                    <!-- 글꼴 관리 -->
+                    <div style="border-top: 1px dashed var(--border); padding-top: 14px; margin-bottom: 16px;">
+                        <h4 style="font-size: 0.8rem; color: var(--gray-800); margin-bottom: 10px; font-weight: 700;">
+                            <i class="fas fa-font" style="color: var(--primary);"></i> 화면 및 인쇄 글꼴 설정
+                        </h4>
+                        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px;">
+                            <div class="field-group" style="flex-direction: column; align-items: flex-start; gap: 4px;">
+                                <label for="font-viewer-select" style="font-size:0.78rem; font-weight:600; color:var(--gray-600);">뷰어 글꼴</label>
+                                <select id="font-viewer-select" class="field" style="width:100%; height: 36px; padding: 4px 8px; border-radius: 6px;">
+                                    <option value="Pretendard">Pretendard (기본)</option>
+                                    <option value="Gowun Dodum">고운돋음 (Gowun Dodum)</option>
+                                    <option value="Noto Sans KR">본고딕 (Noto Sans KR)</option>
+                                    <option value="Nanum Gothic">나눔고딕 (Nanum Gothic)</option>
+                                </select>
+                            </div>
+
+                            <div class="field-group" style="flex-direction: column; align-items: flex-start; gap: 4px;">
+                                <label for="font-manager-select" style="font-size:0.78rem; font-weight:600; color:var(--gray-600);">관리자 글꼴</label>
+                                <select id="font-manager-select" class="field" style="width:100%; height: 36px; padding: 4px 8px; border-radius: 6px;">
+                                    <option value="Pretendard">Pretendard (기본)</option>
+                                    <option value="Gowun Dodum">고운돋음 (Gowun Dodum)</option>
+                                    <option value="Noto Sans KR">본고딕 (Noto Sans KR)</option>
+                                    <option value="Nanum Gothic">나눔고딕 (Nanum Gothic)</option>
+                                </select>
+                            </div>
+
+                            <div class="field-group" style="flex-direction: column; align-items: flex-start; gap: 4px;">
+                                <label for="font-print-select" style="font-size:0.78rem; font-weight:600; color:var(--gray-600);">인쇄 글꼴</label>
+                                <select id="font-print-select" class="field" style="width:100%; height: 36px; padding: 4px 8px; border-radius: 6px;">
+                                    <option value="Pretendard">Pretendard (기본)</option>
+                                    <option value="Gowun Dodum">고운돋음 (Gowun Dodum)</option>
+                                    <option value="Noto Sans KR">본고딕 (Noto Sans KR)</option>
+                                    <option value="Nanum Gothic">나눔고딕 (Nanum Gothic)</option>
+                                </select>
+                            </div>
+                        </div>
                     </div>
 
-                    <!-- 인쇄용 글꼴 -->
-                    <div class="field-group" style="margin-bottom: 16px;">
-                        <label for="font-print-select"
-                            style="font-size:0.82rem; font-weight:600; color:var(--gray-600); white-space:nowrap; min-width:100px;">인쇄 글꼴</label>
-                        <select id="font-print-select" class="field" style="max-width:280px; height: 38px; padding: 6px 12px; border-radius: 6px;">
-                            <option value="Pretendard">Pretendard (기본)</option>
-                            <option value="Gowun Dodum">고운돋음 (Gowun Dodum)</option>
-                            <option value="Noto Sans KR">본고딕 (Noto Sans KR)</option>
-                            <option value="Nanum Gothic">나눔고딕 (Nanum Gothic)</option>
-                        </select>
+                    <!-- 기초 데이터 항목 관리 (Custom Master Data) -->
+                    <div>
+
+                        <!-- 수어통역 등급 관리 (수어 회중일 때만 노출) -->
+                        <div id="master-interp-grades-box" style="border-top: 1px dashed var(--border); padding-top: 14px; display: none;">
+                            <h4 style="font-size: 0.8rem; color: var(--gray-800); margin-bottom: 8px; font-weight: 700;">
+                                <i class="fas fa-award" style="color: var(--success);"></i> 수어통역 등급 목록
+                            </h4>
+                            <div id="master-interp-grades-list" style="display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 8px;">
+                                <!-- Dynamic rendering -->
+                            </div>
+                            <div style="display: flex; gap: 6px;">
+                                <input type="text" id="input-new-interp-grade" class="field" placeholder="등급 (예: A, B, C...)" style="width: 130px; font-size: 0.75rem;">
+                                <button id="btn-add-master-grade" class="btn btn-success" style="font-size: 0.75rem; padding: 4px 10px;">
+                                    <i class="fas fa-plus"></i> 등급 추가
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div style="margin-top: 20px; text-align: right;">
+                        <button id="btn-save-master-items" class="btn btn-save" style="font-size: 0.85rem; padding: 8px 18px;">
+                            <i class="fas fa-save"></i> 기본 설정 및 기초 데이터 저장
+                        </button>
                     </div>
                 </div>
 
@@ -1516,13 +1592,17 @@
                     </div>
                 </div>
 
-                <!-- 관리자 계정 관리 -->
+                <!-- 관리자 계정 관리 (통합 계정 관리) -->
                 <div class="settings-card">
                     <h3><span class="badge-num">3</span> 관리자 계정 관리</h3>
-                    <p class="settings-note">최고관리자는 일반 관리자의 비밀번호를 임의로 재설정할 수 있습니다.</p>
+                    <p class="settings-note">
+                        최고관리자는 일반 관리자 계정을 추가, 수정, 삭제하고 권한(평일/주말 접근권한)을 설정할 수 있습니다.<br>
+                        * 등록된 모든 계정은 웹 뷰어 및 관리자 시스템에 통합하여 동일하게 적용됩니다.
+                    </p>
+                    
                     <div style="margin-bottom:12px;">
-                        <button id="btn-add-account" class="btn btn-success">
-                            <i class="fas fa-user-plus"></i> 새 관리자 추가
+                        <button id="btn-add-account" class="btn btn-success" style="font-size: 0.78rem;">
+                            <i class="fas fa-user-plus"></i> 새 계정 추가
                         </button>
                     </div>
                     <div style="overflow-x:auto;">
@@ -1530,7 +1610,7 @@
                             <thead>
                                 <tr>
                                     <th>이름(ID)</th>
-                                    <th>새 비밀번호</th>
+                                    <th>비밀번호</th>
                                     <th style="width:150px;">권한(Role)</th>
                                     <th style="width:80px;">평일</th>
                                     <th style="width:80px;">주말</th>
@@ -1541,8 +1621,8 @@
                         </table>
                     </div>
                     <div style="margin-top:16px; text-align:right;">
-                        <button id="btn-save-accounts" class="btn btn-save">
-                            <i class="fas fa-save"></i> 관리자 권한 저장
+                        <button id="btn-save-accounts" class="btn btn-save" style="font-size: 0.78rem;">
+                            <i class="fas fa-save"></i> 계정 권한 저장
                         </button>
                     </div>
                 </div>
@@ -1574,41 +1654,6 @@
                             </button>
                             <button id="btn-save-supabase" class="btn btn-save" style="font-size: 0.78rem; background: var(--primary);">
                                 <i class="fas fa-check"></i> 로컬 기기에 저장
-                            </button>
-                        </div>
-                    </div>
-
-                    <!-- 웹 로그인 정보 목록 (수정/삭제 가능) -->
-                    <div id="web-login-list-container" style="margin-top: 20px; border-top: 1px dashed var(--border); padding-top: 15px; margin-bottom: 20px;">
-                        <h4 style="margin: 0 0 10px; font-size: 0.82rem; color: var(--gray-800); display: flex; align-items: center; gap: 6px; font-weight: bold;">
-                            <i class="fas fa-list" style="color: var(--primary);"></i> 등록된 웹 로그인 정보 목록
-                        </h4>
-                        <div style="margin-bottom:12px; display: flex; gap: 8px;">
-                            <button id="btn-add-web-login" class="btn btn-success" style="font-size: 0.75rem; padding: 4px 10px;">
-                                <i class="fas fa-plus"></i> 새 웹 로그인 추가
-                            </button>
-                        </div>
-                        <div style="overflow-x:auto;">
-                            <table class="data-table" id="web-login-connections-table" style="font-size: 0.78rem;">
-                                <thead>
-                                    <tr>
-                                        <th>아이디(ID)</th>
-                                        <th>비밀번호</th>
-                                        <th>Supabase URL</th>
-                                        <th>Supabase API Key</th>
-                                        <th style="width: 100px;">관리</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    <tr>
-                                        <td colspan="5" style="text-align:center; color:var(--gray-400);">등록된 웹 로그인 정보가 없습니다.</td>
-                                    </tr>
-                                </tbody>
-                            </table>
-                        </div>
-                        <div style="margin-top: 10px; text-align: right;">
-                            <button id="btn-save-menu-web-logins" class="btn btn-save" style="font-size: 0.78rem; background: var(--purple);">
-                                <i class="fas fa-save"></i> 웹 로그인 정보 저장
                             </button>
                         </div>
                     </div>
@@ -1662,15 +1707,24 @@
                 <table class="data-table" id="publisher-data-table">
                     <thead>
                         <tr>
-                            <th style="width:100px;">이름</th>
-                            <th style="width:60px;">성별</th>
-                            <th style="width:80px;">출생연도</th>
-                            <th style="width:50px;">사회</th>
-                            <th style="width:50px;">낭독</th>
-                            <th style="width:50px;">실연</th>
-                            <th style="width:50px;">연설</th>
-                            <th style="width:50px;">연구</th>
-                            <th style="width:60px;">삭제</th>
+                            <th style="width:90px;">이름</th>
+                            <th style="width:50px;">성별</th>
+                            <th style="width:70px;">출생연도</th>
+                            <th style="width:45px;" class="sl-col-deaf" title="농인 여부">농인</th>
+                            <th style="width:75px;" class="sl-col-interp-grade" title="수어통역 등급">통역등급</th>
+                            <th style="width:45px;">사회</th>
+                            <th style="width:45px;">기도</th>
+                            <th style="width:45px;">낭독</th>
+                            <th style="width:45px;">실연</th>
+                            <th style="width:45px;">연설</th>
+                            <th style="width:45px;">연구</th>
+                            <th style="width:50px;">3분</th>
+                            <th style="width:55px;">6개월</th>
+                            <th style="width:50px;">1년</th>
+                            <th style="width:50px;">상시</th>
+                            <th style="width:110px;">제외</th>
+                            <th style="width:110px;">비고</th>
+                            <th style="width:55px;">삭제</th>
                         </tr>
                     </thead>
                     <tbody><!-- 동적 데이터 생성 --></tbody>
@@ -1683,7 +1737,7 @@
         <!-- ────────────────────────────────── -->
         <div id="assignment-mgmt-tab" class="tab-content" style="display:none;">
             <div class="panel-controls">
-                <div class="panel-row">
+                <div class="panel-row" style="flex-wrap: wrap; gap: 10px;">
                     <div class="filter-box">
                         <div class="filter-box-title">자동 배정 도구</div>
                         <div class="panel-row" style="align-items: center; gap: 10px;">
@@ -1694,6 +1748,25 @@
                                 <i class="fas fa-magic"></i> 선택 주차 자동 배정 실행
                             </button>
                             <span style="font-size:0.72rem; color:var(--gray-500);">* 이력 및 가능 여부에 따라 비어있는 항목을 채웁니다.</span>
+                        </div>
+                    </div>
+                    <div class="filter-box">
+                        <div class="filter-box-title"><i class="fas fa-trash-alt"></i> 배정 이력 관리 및 삭제</div>
+                        <div class="panel-row" style="align-items: center; gap: 10px;">
+                            <div class="field-group">
+                                <span class="field-label">시작:</span>
+                                <input type="date" id="history-delete-start" class="field" style="height:38px;">
+                            </div>
+                            <div class="field-group">
+                                <span class="field-label">종료:</span>
+                                <input type="date" id="history-delete-end" class="field" style="height:38px;">
+                            </div>
+                            <button id="btn-delete-history-range" class="btn btn-danger" style="height:38px;">
+                                <i class="fas fa-calendar-minus"></i> 지정 기간 삭제
+                            </button>
+                            <button id="btn-delete-history-2years" class="btn btn-danger-soft" style="height:38px;">
+                                <i class="fas fa-history"></i> 2년 경과 삭제
+                            </button>
                         </div>
                     </div>
                 </div>
@@ -1744,7 +1817,7 @@
     <!-- 평일 집회 배정 도우미 모달 -->
     <!-- ────────────────────────────────── -->
     <div id="assignment-helper-modal" class="modal-overlay" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(17,24,39,0.5); backdrop-filter:blur(4px); z-index:2000; justify-content:center; align-items:center;">
-        <div class="modal-content" style="max-width:760px; width:92%;">
+        <div class="modal-content" style="max-width:900px; width:92%;">
             <div class="modal-header">
                 <h2><i class="fas fa-magic" style="color:var(--primary); margin-right:8px;"></i>평일 집회 배정 도우미</h2>
                 <button onclick="closeAssignmentHelperModal()" class="modal-close"><i class="fas fa-times"></i></button>
@@ -1755,6 +1828,44 @@
             <div style="display:flex; justify-content:flex-end; gap:8px; margin-top:16px;">
                 <button onclick="closeAssignmentHelperModal()" class="btn btn-ghost">닫기</button>
             </div>
+        </div>
+    </div>
+
+    <!-- ────────────────────────────────── -->
+    <!-- 전도인 배정 이력 모달 -->
+    <!-- ────────────────────────────────── -->
+    <div id="publisher-history-modal" class="modal-overlay" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(17,24,39,0.5); backdrop-filter:blur(4px); z-index:2000; justify-content:center; align-items:center;">
+        <div class="modal-content" style="max-width:650px; width:90%;">
+            <div class="modal-header">
+                <h2><i class="fas fa-history" style="color:var(--primary); margin-right:8px;"></i><span id="pub-history-title">전도인 배정 이력</span></h2>
+                <button onclick="closePublisherHistoryModal()" class="modal-close"><i class="fas fa-times"></i></button>
+            </div>
+            <div id="pub-history-content" style="max-height:400px; overflow:auto; border:1px solid var(--border); border-radius:var(--radius); padding:10px;">
+                <!-- Dynamic Content -->
+            </div>
+            <div style="display:flex; justify-content:flex-end; gap:8px; margin-top:16px;">
+                <button onclick="closePublisherHistoryModal()" class="btn btn-ghost">닫기</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 테이블 헤더 우측 클릭 컨텍스트 팝업 메뉴 -->
+    <div id="table-header-context-menu" class="header-context-menu" style="display:none; position:fixed; z-index:99999; background:#ffffff; border:1px solid var(--border); box-shadow:var(--shadow-md); border-radius:8px; padding:6px 0; min-width:160px; font-size:0.8rem;">
+        <div class="menu-item-action" onclick="executeColumnMenuAction('insert_left')" style="padding: 8px 14px; cursor: pointer; display: flex; align-items: center; gap: 8px; color: var(--gray-800); transition: background 0.15s ease;">
+            <i class="fas fa-arrow-left" style="color: var(--primary);"></i> <span>왼쪽에 열 추가</span>
+        </div>
+        <div class="menu-item-action" onclick="executeColumnMenuAction('insert_right')" style="padding: 8px 14px; cursor: pointer; display: flex; align-items: center; gap: 8px; color: var(--gray-800); transition: background 0.15s ease;">
+            <i class="fas fa-arrow-right" style="color: var(--primary);"></i> <span>오른쪽에 열 추가</span>
+        </div>
+        <div style="border-top: 1px dashed var(--border); margin: 4px 0;"></div>
+        <div class="menu-item-action" onclick="executeColumnMenuAction('resize_col')" style="padding: 8px 14px; cursor: pointer; display: flex; align-items: center; gap: 8px; color: var(--gray-800); transition: background 0.15s ease;">
+            <i class="fas fa-arrows-alt-h" style="color: var(--warning);"></i> <span>열 너비 변경</span>
+        </div>
+        <div class="menu-item-action" onclick="executeColumnMenuAction('rename_col')" style="padding: 8px 14px; cursor: pointer; display: flex; align-items: center; gap: 8px; color: var(--gray-800); transition: background 0.15s ease;">
+            <i class="fas fa-edit" style="color: var(--purple);"></i> <span>열 이름 변경</span>
+        </div>
+        <div class="menu-item-action" onclick="executeColumnMenuAction('delete_col')" style="padding: 8px 14px; cursor: pointer; display: flex; align-items: center; gap: 8px; color: var(--danger); transition: background 0.15s ease;">
+            <i class="fas fa-trash-alt" style="color: var(--danger);"></i> <span>열 삭제</span>
         </div>
     </div>
 

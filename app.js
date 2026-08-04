@@ -345,7 +345,13 @@ const formatAssignees = (row) => {
 
 const formatConcludes = (row) => {
     let assignee = formatAssignees(row);
-    if (!assignee) return '';
+    const isInterp = row.interpreter === 'Y';
+    const interpPrefix = isInterp ? `<span class="interp-tag-prefix">통역 : </span>` : '';
+
+    if (!assignee) {
+        if (isInterp) return `<span class="interp-tag-prefix">통역</span>`;
+        return '';
+    }
 
     const isConcluding = row.part_num === '맺음말' || (row.content && row.content.includes('맺음말'));
     const isStartingSong = row.category === 'top' && row.content && row.content.includes('노래');
@@ -357,14 +363,14 @@ const formatConcludes = (row) => {
     const textOnly = (tempDiv.textContent || tempDiv.innerText || '').trim();
 
     if ((isConcluding || isStartingSong) && !textOnly.startsWith('기도')) {
-        return `기도 : ${assignee}`;
+        return `${interpPrefix}기도 : ${assignee}`;
     }
 
     if (isChairmanRow && !textOnly.startsWith('사회자')) {
-        return `사회자 : ${assignee}`;
+        return `${interpPrefix}사회자 : ${assignee}`;
     }
 
-    return assignee;
+    return `${interpPrefix}${assignee}`;
 };
 
 /* --- Original Weekday Rendering Logic (Restored) --- */
@@ -469,9 +475,17 @@ function renderSchedules() {
         const outlineNoStr = w.outline_no ? String(w.outline_no).trim() : '';
         const outlineNoPrefix = outlineNoStr ? `(${escapeHtml(outlineNoStr)}) ` : '';
 
+        const showInterpRow = w.interpreter_name || (localStorage.getItem('CONGREGATION_TYPE') === 'sign_language');
+        const interpHtml = showInterpRow ? `
+            <div class="weekend-summary-row">
+                <div class="weekend-summary-label">수어 통역</div>
+                <div class="weekend-summary-value"><span class="interp-tag-prefix">통역 : </span>${formatAssignee(w.interpreter_name || '미배정')}</div>
+            </div>
+        ` : '';
+
         html += `
         <div class="weekend-summary-box">
-            <div class="weekend-summary-head">${dateStr} 주말 집회 계획표</div>
+            <div class="weekend-summary-head">${dateStr} 주말 집회 계획표 ${w.is_confirmed ? '<span class="badge-interp">SL확정</span>' : ''}</div>
             
             <div class="weekend-summary-row">
                 <div class="weekend-summary-label">사회자 및 시작 기도</div>
@@ -491,7 +505,7 @@ function renderSchedules() {
                     ${formatAssignee(w.speaker)} (${escapeHtml(w.congregation)})
                 </div>
             </div>
-            
+            ${interpHtml}
             <div class="weekend-summary-row">
                 <div class="weekend-summary-label">파수대</div>
                 <div class="weekend-summary-value">${formatAssignee(w.reader)}</div>
@@ -542,6 +556,7 @@ function renderWeekendSchedulesTable() {
                 <th style="width:100px; text-align:center;">연사</th>
                 <th class="col-congregation" style="width:120px; text-align:center;">회중</th>
                 <th style="width:90px; text-align:center;">사회</th>
+                <th style="width:90px; text-align:center;" class="sl-col-interp">통역</th>
                 <th style="width:90px; text-align:center;">파수대</th>
                 <th style="width:90px; text-align:center;">낭독</th>
                 <th style="width:90px; text-align:center;">기도</th>
@@ -572,7 +587,7 @@ function renderWeekendSchedulesTable() {
 
         html += `
             <tr class="${rowClass}">
-                <td class="col-date" style="${smallCellStyle}">${dateStr}</td>
+                <td class="col-date" style="${smallCellStyle}">${dateStr} ${r.is_confirmed ? '<span class="badge-interp">SL</span>' : ''}</td>
                 <td style="text-align:center; font-weight:400; ${smallCellStyle}">${escapeHtml(r.outline_no)}</td>
                 <td class="col-topic" style="font-weight:500; text-align:left; white-space:normal; line-height:1.2; ${commonCellStyle}">
                     <div>
@@ -586,6 +601,7 @@ function renderWeekendSchedulesTable() {
                     </div>
                 </td>
                 <td style="text-align:center; ${commonCellStyle}">${formatAssignee(r.chairman)}</td>
+                <td style="text-align:center; ${commonCellStyle}" class="sl-col-interp">${formatAssignee(r.interpreter_name)}</td>
                 <td style="text-align:center; ${commonCellStyle}">${formatAssignee(r.reader)}</td>
                 <td style="text-align:center; ${commonCellStyle}">${formatAssignee(r.bible_reader)}</td>
                 <td style="text-align:center; ${commonCellStyle}">${formatAssignee(r.prayer)}</td>
@@ -595,6 +611,11 @@ function renderWeekendSchedulesTable() {
 
     html += `</tbody></table></div>`;
     content.innerHTML = html;
+
+    const isSL = localStorage.getItem('CONGREGATION_TYPE') === 'sign_language' || localStorage.getItem('SHOW_INTERP_COLUMN') !== 'false';
+    document.querySelectorAll('.sl-col-interp').forEach(el => {
+        el.style.display = isSL ? '' : 'none';
+    });
 }
 
 function navigateToPreviousWeek() {
@@ -831,7 +852,7 @@ function openWeekSelectModal() {
                 });
                 itemHtml += `</div>`;
             } else if (isCurrent) {
-                itemHtml += `<span style="font-size:0.8em; color:#6366f1; font-weight:bold;">현재 선택됨</span>`;
+                itemHtml += `<span style="font-size:0.88em; color:#6366f1; font-weight:bold;">현재 선택됨</span>`;
             }
 
             item.innerHTML = itemHtml;
