@@ -118,8 +118,8 @@ async function setupNavigationButtons() {
             .select('*');
 
         if (!settingsErr && settingsData) {
-            const congName = settingsData.find(s => s.key === 'congregation_name')?.value || '집회 계획표';
-            const fontViewer = settingsData.find(s => s.key === 'font_viewer')?.value || 'Pretendard';
+            const congName = settingsData.find(s => s.key === 'congregation_name')?.value || localStorage.getItem('congregationName') || '집회 계획표';
+            const fontViewer = settingsData.find(s => s.key === 'font_viewer')?.value || localStorage.getItem('fontViewer') || 'Pretendard';
 
             window.appState.congregationName = congName;
             localStorage.setItem('congregationName', congName);
@@ -578,6 +578,10 @@ function renderWeekendSchedulesTable() {
         }
         lastMonth = curMonth;
 
+        if (r.is_confirmed) {
+            rowClass += (rowClass ? " " : "") + "row-confirmed";
+        }
+
         const topic = r.topic || (r.public_talk_outlines?.topic || '');
         const dateStr = `${String(d.getFullYear()).slice(-2)}/${String(d.getMonth() + 1).padStart(2, '0')}/${String(d.getDate()).padStart(2, '0')}`;
 
@@ -587,7 +591,7 @@ function renderWeekendSchedulesTable() {
 
         html += `
             <tr class="${rowClass}">
-                <td class="col-date" style="${smallCellStyle}">${dateStr} ${r.is_confirmed ? '<span class="badge-interp">SL</span>' : ''}</td>
+                <td class="col-date" style="${smallCellStyle}">${dateStr}</td>
                 <td style="text-align:center; font-weight:400; ${smallCellStyle}">${escapeHtml(r.outline_no)}</td>
                 <td class="col-topic" style="font-weight:500; text-align:left; white-space:normal; line-height:1.2; ${commonCellStyle}">
                     <div>

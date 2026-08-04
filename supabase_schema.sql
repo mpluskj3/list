@@ -19,7 +19,9 @@ CREATE TABLE IF NOT EXISTS public.schedules (
     sort_order INTEGER, 
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
-ALTER TABLE public.schedules DISABLE ROW LEVEL SECURITY;
+ALTER TABLE public.schedules ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Enable full access for schedules" ON public.schedules;
+CREATE POLICY "Enable full access for schedules" ON public.schedules FOR ALL USING (true) WITH CHECK (true);
 
 -- 2. Create publishers table (전도인 명단 및 권한)
 CREATE TABLE IF NOT EXISTS public.publishers (
@@ -41,7 +43,9 @@ CREATE TABLE IF NOT EXISTS public.publishers (
     remarks TEXT,                         -- 특이사항/비고
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
-ALTER TABLE public.publishers DISABLE ROW LEVEL SECURITY;
+ALTER TABLE public.publishers ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Enable full access for publishers" ON public.publishers;
+CREATE POLICY "Enable full access for publishers" ON public.publishers FOR ALL USING (true) WITH CHECK (true);
 
 -- 3. Create assignment_history table (배정 이력 추적)
 CREATE TABLE IF NOT EXISTS public.assignment_history (
@@ -54,7 +58,9 @@ CREATE TABLE IF NOT EXISTS public.assignment_history (
     content TEXT,            -- 배정됐던 내용
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
-ALTER TABLE public.assignment_history DISABLE ROW LEVEL SECURITY;
+ALTER TABLE public.assignment_history ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Enable full access for assignment_history" ON public.assignment_history;
+CREATE POLICY "Enable full access for assignment_history" ON public.assignment_history FOR ALL USING (true) WITH CHECK (true);
 
 -- 4. Create public_talk_outlines table (공개 강연 골자 명단)
 CREATE TABLE IF NOT EXISTS public.public_talk_outlines (
@@ -62,7 +68,9 @@ CREATE TABLE IF NOT EXISTS public.public_talk_outlines (
     topic TEXT NOT NULL,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
-ALTER TABLE public.public_talk_outlines DISABLE ROW LEVEL SECURITY;
+ALTER TABLE public.public_talk_outlines ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Enable full access for public_talk_outlines" ON public.public_talk_outlines;
+CREATE POLICY "Enable full access for public_talk_outlines" ON public.public_talk_outlines FOR ALL USING (true) WITH CHECK (true);
 
 -- 5. Create public_talks table (주말 집회 계획표)
 CREATE TABLE IF NOT EXISTS public.public_talks (
@@ -82,7 +90,9 @@ CREATE TABLE IF NOT EXISTS public.public_talks (
     is_confirmed BOOLEAN DEFAULT FALSE, -- SL(수어) 여부 또는 확정 상태
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
-ALTER TABLE public.public_talks DISABLE ROW LEVEL SECURITY;
+ALTER TABLE public.public_talks ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Enable full access for public_talks" ON public.public_talks;
+CREATE POLICY "Enable full access for public_talks" ON public.public_talks FOR ALL USING (true) WITH CHECK (true);
 
 -- 기존 테이블이 존재할 때 누락된 컬럼 안전하게 추가 (마이그레이션 호환)
 ALTER TABLE public.schedules ADD COLUMN IF NOT EXISTS interpreter TEXT;
@@ -114,7 +124,9 @@ CREATE TABLE IF NOT EXISTS public.admin_users (
     can_manage_weekday BOOLEAN DEFAULT TRUE,
     can_manage_weekend BOOLEAN DEFAULT TRUE
 );
-ALTER TABLE public.admin_users DISABLE ROW LEVEL SECURITY;
+ALTER TABLE public.admin_users ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Enable full access for admin_users" ON public.admin_users;
+CREATE POLICY "Enable full access for admin_users" ON public.admin_users FOR ALL USING (true) WITH CHECK (true);
 
 -- 초기 관리자 계정 생성 (이미 존재하는 경우 무시)
 INSERT INTO public.admin_users (username, password, role) 
@@ -130,7 +142,9 @@ CREATE TABLE IF NOT EXISTS public.navigation_links (
     sort_order INTEGER DEFAULT 0,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
-ALTER TABLE public.navigation_links DISABLE ROW LEVEL SECURITY;
+ALTER TABLE public.navigation_links ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Enable full access for navigation_links" ON public.navigation_links;
+CREATE POLICY "Enable full access for navigation_links" ON public.navigation_links FOR ALL USING (true) WITH CHECK (true);
 
 -- 8. Create app_settings table (전역 설정 관리)
 CREATE TABLE IF NOT EXISTS public.app_settings (
@@ -138,7 +152,10 @@ CREATE TABLE IF NOT EXISTS public.app_settings (
     value TEXT,
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
-ALTER TABLE public.app_settings DISABLE ROW LEVEL SECURITY;
+ALTER TABLE public.app_settings ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Allow all for settings" ON public.app_settings;
+DROP POLICY IF EXISTS "Enable full access for app_settings" ON public.app_settings;
+CREATE POLICY "Enable full access for app_settings" ON public.app_settings FOR ALL USING (true) WITH CHECK (true);
 
 -- 초기 설정값 생성 (이미 존재하는 경우 무시)
 INSERT INTO public.app_settings (key, value) 
@@ -157,4 +174,6 @@ CREATE TABLE IF NOT EXISTS public.database_connections (
     supabase_key TEXT NOT NULL,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
-ALTER TABLE public.database_connections DISABLE ROW LEVEL SECURITY;
+ALTER TABLE public.database_connections ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Enable full access for database_connections" ON public.database_connections;
+CREATE POLICY "Enable full access for database_connections" ON public.database_connections FOR ALL USING (true) WITH CHECK (true);

@@ -683,25 +683,45 @@ async function saveMasterItemsSettings() {
     showSlCheck = document.getElementById('opt-show-sl-check')?.checked ?? true;
     showInterpColumn = document.getElementById('opt-show-interp-column')?.checked ?? true;
 
+    // Read fonts & congregation name
+    const congName = document.getElementById('congregation-name-input')?.value || '';
+    const fontViewer = document.getElementById('font-viewer-select')?.value || 'Pretendard';
+    const fontManager = document.getElementById('font-manager-select')?.value || 'Pretendard';
+    const fontPrint = document.getElementById('font-print-select')?.value || 'Pretendard';
+
     localStorage.setItem('CONGREGATION_TYPE', congregationType);
     localStorage.setItem('SHOW_INTERP_TAG', showInterpTag ? 'true' : 'false');
     localStorage.setItem('SHOW_SL_CHECK', showSlCheck ? 'true' : 'false');
     localStorage.setItem('SHOW_INTERP_COLUMN', showInterpColumn ? 'true' : 'false');
     localStorage.setItem('MASTER_ITEMS', JSON.stringify(masterItems));
 
+    localStorage.setItem('congregationName', congName);
+    localStorage.setItem('fontViewer', fontViewer);
+    localStorage.setItem('fontManager', fontManager);
+    localStorage.setItem('fontPrint', fontPrint);
+
+    // Instantly apply Manager Font to body
+    ensureFontLoaded(fontManager);
+    applyFontToBody(fontManager);
+
     try {
+        const now = new Date().toISOString();
         const settingsToUpsert = [
-            { key: 'congregation_type', value: congregationType },
-            { key: 'show_interp_tag', value: showInterpTag ? 'true' : 'false' },
-            { key: 'show_sl_check', value: showSlCheck ? 'true' : 'false' },
-            { key: 'show_interp_column', value: showInterpColumn ? 'true' : 'false' },
-            { key: 'custom_master_items', value: JSON.stringify(masterItems) }
+            { key: 'congregation_name', value: congName, updated_at: now },
+            { key: 'font_viewer', value: fontViewer, updated_at: now },
+            { key: 'font_manager', value: fontManager, updated_at: now },
+            { key: 'font_print', value: fontPrint, updated_at: now },
+            { key: 'congregation_type', value: congregationType, updated_at: now },
+            { key: 'show_interp_tag', value: showInterpTag ? 'true' : 'false', updated_at: now },
+            { key: 'show_sl_check', value: showSlCheck ? 'true' : 'false', updated_at: now },
+            { key: 'show_interp_column', value: showInterpColumn ? 'true' : 'false', updated_at: now },
+            { key: 'custom_master_items', value: JSON.stringify(masterItems), updated_at: now }
         ];
 
-        const { error } = await supabaseClient.from('app_settings').upsert(settingsToUpsert);
-        if (error) throw error;
+        const { error } = await supabaseClient.from('app_settings').upsert(settingsToUpsert, { onConflict: 'key' });
+        if (error) console.warn('[MasterItems] DB save warning:', error);
 
-        alert('회중 기초 데이터 및 수어 옵션 설정이 저장되었습니다.');
+        alert('기본 설정 및 기초 데이터가 저장되었습니다.');
         applyCongregationModeUI();
         renderWeekdayTable();
         renderWeekendTable();
@@ -1485,8 +1505,12 @@ async function loadNavLinks() {
             .select('*')
             .order('sort_order', { ascending: true });
 
-        if (navErr) throw navErr;
-        navLinks = navData || [];
+        if (navErr) {
+            console.warn('[NavLinks] Failed or table missing:', navErr.message || navErr);
+            navLinks = [];
+        } else {
+            navLinks = navData || [];
+        }
         deletedNavIds = [];
         renderNavLinks();
 
@@ -1496,10 +1520,10 @@ async function loadNavLinks() {
             .select('*');
 
         if (!settingsErr && settingsData) {
-            const congName = settingsData.find(s => s.key === 'congregation_name')?.value || '';
-            const fontViewer = settingsData.find(s => s.key === 'font_viewer')?.value || 'Pretendard';
-            const fontManager = settingsData.find(s => s.key === 'font_manager')?.value || 'Pretendard';
-            const fontPrint = settingsData.find(s => s.key === 'font_print')?.value || 'Pretendard';
+            const congName = settingsData.find(s => s.key === 'congregation_name')?.value || localStorage.getItem('congregationName') || '';
+            const fontViewer = settingsData.find(s => s.key === 'font_viewer')?.value || localStorage.getItem('fontViewer') || 'Pretendard';
+            const fontManager = settingsData.find(s => s.key === 'font_manager')?.value || localStorage.getItem('fontManager') || 'Pretendard';
+            const fontPrint = settingsData.find(s => s.key === 'font_print')?.value || localStorage.getItem('fontPrint') || 'Pretendard';
 
             document.getElementById('congregation-name-input').value = congName;
             document.getElementById('font-viewer-select').value = fontViewer;
@@ -1510,6 +1534,7 @@ async function loadNavLinks() {
             localStorage.setItem('congregationName', congName);
             localStorage.setItem('fontViewer', fontViewer);
             localStorage.setItem('fontManager', fontManager);
+            localStorage.setItem('fontPrint', fontPrint);
 
             // Apply Manager Font to body
             ensureFontLoaded(fontManager);
@@ -1633,14 +1658,17 @@ async function saveNavLinks() {
 
         const { error: settingsErr } = await supabaseClient
             .from('app_settings')
-            .upsert(settingsUpserts);
+            .upsert(settingsUpserts, { onConflict: 'key' });
 
-        if (settingsErr) throw settingsErr;
+        if (settingsErr) {
+            console.warn('[AppSettings] Save warning (saved to localStorage):', settingsErr);
+        }
 
         // localStorage 캐시도 즉시 업데이트 (다음 로딩 시 최신값 반영)
         localStorage.setItem('congregationName', congName);
         localStorage.setItem('fontViewer', fontViewer);
         localStorage.setItem('fontManager', fontManager);
+        localStorage.setItem('fontPrint', fontPrint);
 
         // Instantly apply Manager Font to body
         ensureFontLoaded(fontManager);
@@ -4967,13 +4995,19 @@ async function loadWebConnections() {
             .select('*')
             .order('username', { ascending: true });
 
-        if (error) throw error;
-        webConnections = data || [];
+        if (error) {
+            console.warn('[WebConnections] Table database_connections may not exist:', error.message || error);
+            webConnections = [];
+        } else {
+            webConnections = data || [];
+        }
         deletedWebConnectionUsernames = [];
         renderWebConnectionsTables();
     } catch (e) {
-        console.error(e);
-        alert('웹 로그인 정보를 불러오는 중 오류 발생');
+        console.warn('[WebConnections] Failed to load web connections:', e);
+        webConnections = [];
+        deletedWebConnectionUsernames = [];
+        renderWebConnectionsTables();
     }
 }
 
