@@ -1404,17 +1404,48 @@
                             </div>
                         </div>
 
-                        <div class="field-group" style="align-items: center; gap: 16px; margin-top: 8px;">
-                            <span class="field-label" style="min-width: 70px; font-weight: 600; color: var(--gray-700);">여백 모드:</span>
-                            <div style="display: flex; gap: 16px; align-items: center;">
-                                <label style="display: flex; align-items: center; gap: 6px; font-size: 0.8rem; color: var(--gray-700); cursor: pointer;">
-                                    <input type="radio" name="print-weekend-scale-mode" value="scale" checked style="cursor: pointer;">
-                                    <span>페이지 전체에 맞춤 확대</span>
-                                </label>
-                                <label style="display: flex; align-items: center; gap: 6px; font-size: 0.8rem; color: var(--gray-700); cursor: pointer;">
-                                    <input type="radio" name="print-weekend-scale-mode" value="top" style="cursor: pointer;">
-                                    <span>상단에 정렬 (남는 공간 빈 여백)</span>
-                                </label>
+                        <div class="panel-row" style="gap: 12px; flex-wrap: wrap; align-items: center; background: var(--gray-50); padding: 10px 14px; border-radius: var(--radius-sm); border: 1px solid var(--border); margin-top: 4px;">
+                            <span class="field-label" style="font-weight: 700; color: var(--gray-700); font-size: 0.8rem; margin-right: 4px;"><i class="fas fa-border-all" style="color: var(--primary);"></i> 여백 설정 (mm):</span>
+                            <div class="field-group" style="align-items: center; gap: 4px;">
+                                <span style="font-size: 0.78rem; color: var(--gray-600); font-weight: 600;">상:</span>
+                                <input type="number" id="print-weekend-margin-top" class="field" value="10" min="0" max="40" step="1" style="width: 50px; text-align: center; padding: 3px 4px;">
+                            </div>
+                            <div class="field-group" style="align-items: center; gap: 4px;">
+                                <span style="font-size: 0.78rem; color: var(--gray-600); font-weight: 600;">하:</span>
+                                <input type="number" id="print-weekend-margin-bottom" class="field" value="10" min="0" max="40" step="1" style="width: 50px; text-align: center; padding: 3px 4px;">
+                            </div>
+                            <div class="field-group" style="align-items: center; gap: 4px;">
+                                <span style="font-size: 0.78rem; color: var(--gray-600); font-weight: 600;">좌:</span>
+                                <input type="number" id="print-weekend-margin-left" class="field" value="12" min="0" max="40" step="1" style="width: 50px; text-align: center; padding: 3px 4px;">
+                            </div>
+                            <div class="field-group" style="align-items: center; gap: 4px;">
+                                <span style="font-size: 0.78rem; color: var(--gray-600); font-weight: 600;">우:</span>
+                                <input type="number" id="print-weekend-margin-right" class="field" value="12" min="0" max="40" step="1" style="width: 50px; text-align: center; padding: 3px 4px;">
+                            </div>
+                            <div class="field-group" style="align-items: center; gap: 6px; margin-left: 8px;">
+                                <span class="field-label" style="font-weight: 600; color: var(--gray-700); font-size: 0.8rem;">행 높이 맞춤:</span>
+                                <select id="print-weekend-row-mode" class="field" style="width: 165px; font-size: 0.8rem; font-weight: 600;">
+                                    <option value="fill" selected>A4 1페이지 균등 채움 (추천)</option>
+                                    <option value="compact">조밀하게 (50px 고정)</option>
+                                    <option value="standard">표준 (54px 고정)</option>
+                                    <option value="relaxed">여유있게 (58px 고정)</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <div class="panel-row" style="gap: 14px; flex-wrap: wrap; align-items: center; background: var(--gray-50); padding: 10px 14px; border-radius: var(--radius-sm); border: 1px solid var(--border); margin-top: 4px;">
+                            <span class="field-label" style="font-weight: 700; color: var(--gray-700); font-size: 0.8rem;"><i class="fas fa-palette" style="color: var(--primary);"></i> 테마 색상:</span>
+                            <select id="print-weekend-theme" class="field" style="width: 155px; font-size: 0.8rem; font-weight: 600;">
+                                <option value="blue" selected>🔵 클래식 블루</option>
+                                <option value="green">🟢 포레스트 그린</option>
+                                <option value="purple">🟣 로열 퍼플</option>
+                                <option value="slate">🟤 모던 슬레이트</option>
+                                <option value="amber">🟠 웜 엠버</option>
+                                <option value="custom">🎨 사용자 정의 색상</option>
+                            </select>
+                            <div id="print-weekend-custom-color-wrap" style="display: none; align-items: center; gap: 6px;">
+                                <input type="color" id="print-weekend-custom-color" value="#2563eb" style="width: 32px; height: 28px; border: 1px solid var(--border); border-radius: 4px; cursor: pointer; padding: 0; background: none;">
+                                <span style="font-size: 0.78rem; color: var(--gray-600); font-weight: 600;">사용자 지정 색상</span>
                             </div>
                         </div>
                     </div>
@@ -1430,11 +1461,12 @@
                             <i class="fas fa-print"></i> 주말 계획표 화면 인쇄 및 PDF 저장
                         </button>
                         <div style="margin-top: 14px; background: var(--gray-50); border: 1px solid var(--gray-200); border-radius: var(--radius-sm); padding: 12px; font-size: 0.76rem; color: var(--gray-600); line-height: 1.6;">
-                            <strong style="color: var(--purple);"><i class="fas fa-info-circle"></i> 주말집회 인쇄 권장 사항</strong>
+                            <strong style="color: var(--purple);"><i class="fas fa-info-circle"></i> 주말집회 계획표 인쇄 안내</strong>
                             <ul style="margin: 6px 0 0; padding-left: 18px;">
-                                <li>주제 컬럼은 텍스트 줄바꿈(Text Wrapping)이 자동으로 지원되므로 긴 제목도 잘림 없이 정상 인쇄됩니다.</li>
-                                <li>A4 세로 1페이지 내에 수직으로 가득 채워 인쇄하고 싶다면 <strong>[페이지 전체에 맞춤 확대]</strong>를, 남는 영역을 깨끗한 여백으로 출력하고 싶다면 <strong>[상단에 정렬]</strong>을 선택하세요.</li>
-                                <li>안정적인 1페이지 출력을 위해 최대 일정 개수는 <strong>16개</strong> 이하를 권장합니다.</li>
+                                <li><strong>회중 맞춤 자동 조판</strong>: [메뉴 설정]의 회중 유형에 따라 <strong>한국어 회중</strong>(낭독 포함) / <strong>수어 회중</strong>(통역 포함)으로 컬럼이 자동 최적화됩니다.</li>
+                                <li><strong>상·하·좌·우 여백 및 테마</strong>: 원하는 여백(mm)과 테마 색상을 지정할 수 있으며, 인쇄 미리보기 화면 상단 툴바에서 <strong>실시간 조절</strong>도 가능합니다.</li>
+                                <li><strong>A4 1페이지 최적화</strong>: [행 높이 맞춤]을 통해 모든 행이 균등한 높이로 자동 계산되며, 안정적인 1장 인쇄를 위해 <strong>최대 16주(약 3~4개월) 이하</strong> 출력을 권장합니다.</li>
+                                <li><strong>브라우저 인쇄 팁</strong>: 인쇄 창에서 대상 프린터를 <strong>'PDF로 저장'</strong> 또는 실제 프린터로 선택하시고, [기타 설정] &rarr; <strong>[배경 그래픽]</strong>을 체크하시면 테마 색상이 선명하게 인쇄됩니다.</li>
                             </ul>
                         </div>
                     </div>

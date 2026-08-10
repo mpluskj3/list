@@ -3786,6 +3786,15 @@ async function loadPrintTab() {
             }, 100);
         }
 
+        // Theme custom color visibility toggle
+        const themeSelect = document.getElementById('print-weekend-theme');
+        const customWrap = document.getElementById('print-weekend-custom-color-wrap');
+        if (themeSelect && customWrap) {
+            themeSelect.onchange = function() {
+                customWrap.style.display = (themeSelect.value === 'custom') ? 'flex' : 'none';
+            };
+        }
+
     } catch (e) {
         console.error('Error loading print tab data:', e);
         alert('인쇄 데이터를 로드하는 중 오류가 발생했습니다.');
@@ -3821,79 +3830,64 @@ async function triggerPrintFlow() {
         }
     }
 
-    generatePrintView(selectedWeeks, congName, fontPrint);
+    // Read print1-scale-mode option
+    const scaleMode = document.querySelector('input[name="print-scale-mode"]:checked')?.value || 'scale';
+
+    // Generate Print View in new window
+    generatePrintView(selectedWeeks, congName, fontPrint, scaleMode);
 }
 
-async function updateWeekendPrintBudget() {
-    const startDate = document.getElementById('print-weekend-start-date').value;
-    const endDate = document.getElementById('print-weekend-end-date').value;
+function updateWeekendPrintBudget() {
+    const startInput = document.getElementById('print-weekend-start-date');
+    const endInput = document.getElementById('print-weekend-end-date');
     const infoEl = document.getElementById('print-weekend-budget-info');
-    if (!infoEl) return;
+    if (!startInput || !endInput || !infoEl) return;
 
+    const startDate = startInput.value;
+    const endDate = endInput.value;
     if (!startDate || !endDate) {
-        infoEl.innerHTML = `<span style="color: var(--gray-500); font-weight: 500;">출력 기간을 설정해 주세요.</span>`;
+        infoEl.innerHTML = `<span style="color: var(--gray-400); font-size: 0.78rem;">시작일과 종료일을 모두 선택해 주세요.</span>`;
         return;
     }
 
-    if (new Date(startDate) > new Date(endDate)) {
-        infoEl.innerHTML = `<span style="color: var(--danger); font-weight: 600;">⚠️ 시작일이 종료일보다 늦습니다.</span>`;
+    const dStart = new Date(startDate);
+    const dEnd = new Date(endDate);
+    if (dStart > dEnd) {
+        infoEl.innerHTML = `<span style="color: var(--danger); font-weight: 600; font-size: 0.78rem;"><i class="fas fa-exclamation-circle"></i> 시작일이 종료일보다 늦습니다.</span>`;
         return;
     }
 
     try {
-        const { count, error } = await supabaseClient
-            .from('public_talks')
-            .select('*', { count: 'exact', head: true })
-            .gte('meeting_date', startDate)
-            .lte('meeting_date', endDate);
-
-        if (error) throw error;
-
-        const maxPageCapacity = 16; // fits comfortably on 1 A4 page
-        const isSafe = count <= maxPageCapacity;
-
-        let statusHtml = '';
-        if (count === 0) {
-            statusHtml = `<span style="color: var(--warning); font-weight: 600;">⚠️ 선택한 기간에 등록된 일정이 없습니다.</span>`;
-        } else if (isSafe) {
-            statusHtml = `<span style="color: var(--success); font-weight: 600;">✅ 현재 ${count}개 일정 등록됨 - A4 1페이지 내에 안정적으로 인쇄 가능합니다.</span>`;
-        } else {
-            statusHtml = `<span style="color: var(--danger); font-weight: 600;">❌ 현재 ${count}개 일정 등록됨 - A4 1페이지 용량(16개)을 초과하여 페이지가 잘리거나 넘어갈 수 있습니다.</span>`;
+        // Calculate weeks in range
+        let count = 0;
+        let curr = new Date(dStart);
+        while (curr <= dEnd) {
+            count++;
+            curr.setDate(curr.getDate() + 7);
         }
 
-        // Calculate max months recommendation from start date
-        const { data: futureSlots } = await supabaseClient
-            .from('public_talks')
-            .select('meeting_date')
-            .gte('meeting_date', startDate)
-            .order('meeting_date', { ascending: true })
-            .limit(maxPageCapacity + 1);
+        let statusHtml = "";
+        let recommendHtml = "";
 
-        let recommendHtml = '';
-        if (futureSlots && futureSlots.length > 0) {
-            const availableCount = Math.min(futureSlots.length, maxPageCapacity);
-            const targetSlot = futureSlots[availableCount - 1];
-
-            const startD = new Date(startDate);
-            const targetD = new Date(targetSlot.meeting_date);
-            const diffMonths = ((targetD.getFullYear() - startD.getFullYear()) * 12) + (targetD.getMonth() - startD.getMonth()) + 1;
-
-            recommendHtml = `
-                <div style="margin-top: 8px; font-size: 0.74rem; color: var(--gray-600); line-height: 1.4;">
-                    💡 <strong>1페이지 최적화 가이드:</strong> 시작일 기준 최대 <strong>${diffMonths}개월</strong> 분량(${availableCount}개 일정)을 권장합니다.<br>
-                    <button type="button" class="btn-mini" style="margin-top: 6px; font-size: 0.7rem; padding: 2px 8px; height: auto; background: var(--success); border: 1px solid var(--success-border); color: #fff;" onclick="optimizeWeekendPrintRange('${targetSlot.meeting_date}')">
-                        최적화된 종료일로 설정 (~ ${targetSlot.meeting_date})
-                    </button>
-                </div>
+        if (count <= 16) {
+            statusHtml = `
+                <span style="color: var(--success); font-weight: 700;">
+                    <i class="fas fa-check-circle"></i> A4 1페이지 최적 범위 (${count}개 주차 / 약 ${Math.ceil(count / 4.3)}개월)
+                </span>
+                <span style="color: var(--gray-600); font-size: 0.75rem; margin-left: 6px;">- 1장에 깔끔하게 들어갑니다.</span>
+            `;
+        } else {
+            statusHtml = `
+                <span style="color: var(--danger); font-weight: 700;">
+                    <i class="fas fa-exclamation-triangle"></i> 용량 초과 주의 (${count}개 주차)
+                </span>
+                <span style="color: var(--gray-600); font-size: 0.75rem; margin-left: 6px;">- 16주 초과 시 2페이지로 넘어갈 수 있습니다.</span>
             `;
         }
 
         infoEl.innerHTML = `
-            <div style="padding: 10px; background: var(--gray-50); border: 1px solid var(--gray-200); border-radius: var(--radius-sm);">
-                <div style="font-size: 0.78rem; display: flex; align-items: center; gap: 6px;">
-                    ${statusHtml}
-                </div>
-                ${recommendHtml}
+            <div style="padding: 10px; background: var(--gray-50); border: 1px solid var(--gray-200); border-radius: var(--radius-sm); font-size: 0.78rem;">
+                ${statusHtml}
             </div>
         `;
     } catch (e) {
@@ -3901,11 +3895,6 @@ async function updateWeekendPrintBudget() {
         infoEl.innerHTML = `<span style="color: var(--danger); font-weight: 500;">계산 중 오류 발생</span>`;
     }
 }
-
-window.optimizeWeekendPrintRange = (optimizedEndDate) => {
-    document.getElementById('print-weekend-end-date').value = optimizedEndDate;
-    updateWeekendPrintBudget();
-};
 
 async function triggerWeekendPrintFlow() {
     const startDate = document.getElementById('print-weekend-start-date').value;
@@ -3935,6 +3924,8 @@ async function triggerWeekendPrintFlow() {
 
         let fontPrint = 'Pretendard';
         let congName = '춘천남부회중';
+        let currentCongType = localStorage.getItem('CONGREGATION_TYPE') || 'korean';
+
         try {
             const { data: settingsData } = await supabaseClient
                 .from('app_settings')
@@ -3942,6 +3933,8 @@ async function triggerWeekendPrintFlow() {
             if (settingsData) {
                 fontPrint = settingsData.find(s => s.key === 'font_print')?.value || 'Pretendard';
                 congName = settingsData.find(s => s.key === 'congregation_name')?.value || '춘천남부회중';
+                const dbCongType = settingsData.find(s => s.key === 'congregation_type')?.value;
+                if (dbCongType) currentCongType = dbCongType;
             }
         } catch (e) {
             console.warn('설정 로드 실패:', e);
@@ -3951,51 +3944,80 @@ async function triggerWeekendPrintFlow() {
             }
         }
 
-        // Read selected scale mode option
-        const scaleMode = document.querySelector('input[name="print-weekend-scale-mode"]:checked')?.value || 'scale';
+        // 여백 및 맞춤 옵션 읽기
+        const marginTop = parseInt(document.getElementById('print-weekend-margin-top')?.value || 10, 10);
+        const marginBottom = parseInt(document.getElementById('print-weekend-margin-bottom')?.value || 10, 10);
+        const marginLeft = parseInt(document.getElementById('print-weekend-margin-left')?.value || 12, 10);
+        const marginRight = parseInt(document.getElementById('print-weekend-margin-right')?.value || 12, 10);
+        const rowMode = document.getElementById('print-weekend-row-mode')?.value || 'fill';
+        const themeName = document.getElementById('print-weekend-theme')?.value || 'blue';
+        const customColor = document.getElementById('print-weekend-custom-color')?.value || '#2563eb';
 
-        generateWeekendPrintView(data, congName, fontPrint, scaleMode);
+        // 설정 메뉴의 회중 유형(congregation_type)을 기준으로 통역 컬럼 자동 판단
+        const includeInterp = (currentCongType === 'sign_language');
+
+        generateWeekendPrintView(data, congName, fontPrint, rowMode, includeInterp, marginTop, marginBottom, marginLeft, marginRight, themeName, customColor);
     } catch (e) {
         console.error(e);
         alert('주말집회 데이터를 로드하는 중 오류가 발생했습니다.');
     }
 }
 
-function generateWeekendPrintView(weekendList, congregationName, fontPrint = 'Pretendard', scaleMode = 'scale') {
+function generateWeekendPrintView(weekendList, congregationName, fontPrint = 'Pretendard', rowMode = 'fill', includeInterp = false, initMarginTop = 10, initMarginBottom = 10, initMarginLeft = 12, initMarginRight = 12, initTheme = 'blue', initCustomColor = '#2563eb') {
     const originUrl = window.location.href;
 
     let rowsHtml = '';
-    let lastMonth = '';
+    let lastMonthKey = '';
+    let monthColorToggle = false;
+
+    // 회중명 포맷팅: 6글자 초과 시 깔끔하게 줄바꿈
+    function formatCongName(name) {
+        if (!name) return '';
+        const trimmed = name.trim();
+        if (trimmed.length > 6) {
+            const splitIdx = Math.ceil(trimmed.length / 2);
+            return `${escapeHtml(trimmed.slice(0, splitIdx))}<br>${escapeHtml(trimmed.slice(splitIdx))}`;
+        }
+        return escapeHtml(trimmed);
+    }
 
     weekendList.forEach((r, idx) => {
         const d = new Date(r.meeting_date);
-        const curMonth = `${d.getFullYear()}-${d.getMonth() + 1}`;
+        const curMonthKey = `${d.getFullYear()}-${d.getMonth() + 1}`;
 
-        let rowClass = "";
-        if (idx !== 0 && curMonth !== lastMonth) {
-            rowClass = "month-border-top";
+        let isMonthStart = false;
+        if (idx === 0) {
+            isMonthStart = true;
+            monthColorToggle = false;
+        } else if (curMonthKey !== lastMonthKey) {
+            isMonthStart = true;
+            monthColorToggle = !monthColorToggle;
         }
-        lastMonth = curMonth;
+        lastMonthKey = curMonthKey;
+
+        const monthBgClass = monthColorToggle ? 'month-odd' : 'month-even';
+        const monthStartClass = isMonthStart && idx !== 0 ? 'month-start' : '';
 
         const topic = r.topic || '';
         const dateStr = `${String(d.getFullYear()).slice(-2)}/${String(d.getMonth() + 1).padStart(2, '0')}/${String(d.getDate()).padStart(2, '0')}`;
 
         rowsHtml += `
-            <tr class="${rowClass}">
-                <td style="text-align: center; font-size: 0.88rem; font-weight: 500;">${dateStr}</td>
-                <td style="text-align: center; font-size: 0.88rem;">${escapeHtml(r.outline_no || '')}</td>
-                <td style="text-align: left; font-size: 0.94rem; font-weight: 600; padding-left: 8px; line-height: 1.35; word-break: keep-all; white-space: normal;">${escapeHtml(topic)}</td>
-                <td style="text-align: center; font-size: 0.94rem; font-weight: 700;">${escapeHtml(r.speaker || '')}</td>
-                <td style="text-align: center; font-size: 0.9rem;">${escapeHtml(r.congregation || '')}</td>
-                <td style="text-align: center; font-size: 0.9rem;">${escapeHtml(r.chairman || '')}</td>
-                <td style="text-align: center; font-size: 0.9rem;">${escapeHtml(r.reader || '')}</td>
-                <td style="text-align: center; font-size: 0.9rem;">${escapeHtml(r.bible_reader || '')}</td>
-                <td style="text-align: center; font-size: 0.9rem;">${escapeHtml(r.prayer || '')}</td>
+            <tr class="${monthBgClass} ${monthStartClass}" data-row-idx="${idx}">
+                <td class="col-date">${dateStr}</td>
+                <td class="col-center col-outline">${escapeHtml(r.outline_no || '')}</td>
+                <td class="col-left col-topic">${escapeHtml(topic)}</td>
+                <td class="col-center col-speaker">${escapeHtml(r.speaker || '')}</td>
+                <td class="col-center col-cong">${formatCongName(r.congregation || '')}</td>
+                ${includeInterp ? `<td class="col-center col-interp">${escapeHtml(r.interpreter_name || '')}</td>` : ''}
+                <td class="col-center col-part">${escapeHtml(r.chairman || '')}</td>
+                <td class="col-center col-part">${escapeHtml(r.reader || '')}</td>
+                ${!includeInterp ? `<td class="col-center col-part">${escapeHtml(r.bible_reader || '')}</td>` : ''}
+                <td class="col-center col-part">${escapeHtml(r.prayer || '')}</td>
             </tr>
         `;
     });
 
-    const printWindow = window.open('', '_blank', 'width=900,height=950');
+    const printWindow = window.open('', '_blank', 'width=1150,height=1000');
     if (!printWindow) {
         alert('팝업 차단이 활성화되어 있습니다. 팝업 허용 후 다시 시도해 주세요.');
         return;
@@ -4006,8 +4028,9 @@ function generateWeekendPrintView(weekendList, congregationName, fontPrint = 'Pr
         <html>
         <head>
             <meta charset="utf-8">
-            <title>${escapeHtml(congregationName)} 공개 강연 계획표</title>
-            <style>
+            <title>공개 강연 계획표 - ${escapeHtml(congregationName)}</title>
+            <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+            <style id="base-style">
                 @import url('${FONT_CDN_MAP[fontPrint] || FONT_CDN_MAP["Pretendard"]}');
                 
                 * {
@@ -4018,159 +4041,689 @@ function generateWeekendPrintView(weekendList, congregationName, fontPrint = 'Pr
                     font-family: ${FONT_FAMILY_MAP[fontPrint] || FONT_FAMILY_MAP["Pretendard"]};
                     margin: 0;
                     padding: 0;
-                    background-color: #fff;
-                    color: #000;
+                    background-color: #64748b;
+                    color: #0f172a;
                     -webkit-print-color-adjust: exact !important;
                     print-color-adjust: exact !important;
                     font-size: 13px;
-                    line-height: 1.45;
+                    line-height: 1.35;
+                }
+
+                /* ─────────── 상단 반응형 컨트롤 바 (화면 전용, 인쇄 시 숨김) ─────────── */
+                .print-toolbar {
+                    position: sticky;
+                    top: 0;
+                    left: 0;
+                    right: 0;
+                    z-index: 9999;
+                    background: #0f172a;
+                    color: #fff;
+                    padding: 10px 18px;
+                    display: flex;
+                    align-items: center;
+                    justify-content: space-between;
+                    gap: 14px;
+                    box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+                    font-size: 0.82rem;
+                }
+
+                .toolbar-group {
+                    display: flex;
+                    align-items: center;
+                    gap: 10px;
+                    flex-wrap: wrap;
+                }
+
+                .toolbar-item {
+                    display: flex;
+                    align-items: center;
+                    gap: 4px;
+                }
+
+                .toolbar-item label {
+                    color: #94a3b8;
+                    font-weight: 600;
+                    white-space: nowrap;
+                }
+
+                .toolbar-input {
+                    background: #1e293b;
+                    border: 1px solid #475569;
+                    color: #fff;
+                    padding: 4px 6px;
+                    border-radius: 4px;
+                    font-size: 0.82rem;
+                    text-align: center;
+                    font-weight: 600;
+                }
+
+                .toolbar-btn {
+                    padding: 7px 18px;
+                    border-radius: 6px;
+                    font-weight: 700;
+                    font-size: 0.86rem;
+                    cursor: pointer;
+                    border: none;
+                    display: inline-flex;
+                    align-items: center;
+                    gap: 6px;
+                    transition: all 0.2s;
+                }
+
+                .btn-print {
+                    background: #2563eb;
+                    color: #fff;
+                    box-shadow: 0 2px 6px rgba(37,99,235,0.4);
+                }
+                .btn-print:hover {
+                    background: #1d4ed8;
+                }
+
+                .btn-close {
+                    background: #334155;
+                    color: #e2e8f0;
+                }
+                .btn-close:hover {
+                    background: #475569;
+                }
+
+                /* ─────────── A4 실제 종이 시각화 뷰포트 ─────────── */
+                .page-viewport {
+                    display: flex;
+                    justify-content: center;
+                    align-items: flex-start;
+                    padding: 30px 10px 60px;
+                    min-height: calc(100vh - 55px);
                 }
 
                 @page {
                     size: A4 portrait;
-                    margin: 10mm 15mm 10mm 15mm;
+                    margin: ${initMarginTop}mm ${initMarginRight}mm ${initMarginBottom}mm ${initMarginLeft}mm;
                 }
 
-                .print-page {
-                    width: 100%;
-                    height: 275mm;
+                /* 실제 A4 크기 (210mm x 297mm) 흰색 용지 */
+                .a4-sheet-paper {
+                    background: #ffffff;
+                    width: 210mm;
+                    height: 297mm;
+                    min-height: 297mm;
                     box-sizing: border-box;
                     display: flex;
                     flex-direction: column;
-                    justify-content: flex-start;
-                    overflow: hidden;
+                    box-shadow: 0 15px 40px rgba(0,0,0,0.3), 0 2px 8px rgba(0,0,0,0.15);
+                    position: relative;
+                    /* 여백을 패딩으로 시각화 */
+                    padding: ${initMarginTop}mm ${initMarginRight}mm ${initMarginBottom}mm ${initMarginLeft}mm;
+                    transition: padding 0.1s ease-out;
                 }
 
-                .main-header {
-                    display: flex;
-                    justify-content: space-between;
-                    align-items: flex-end;
-                    padding-bottom: 6px;
-                    margin-bottom: 12px;
+                /* 여백 내부 실제 인쇄 영역 가이드 */
+                .content-print-area {
                     width: 100%;
-                    border-bottom: 2px solid #000;
+                    height: 100%;
+                    display: flex;
+                    flex-direction: column;
+                    box-sizing: border-box;
+                    position: relative;
+                    outline: 1px dashed rgba(59, 130, 246, 0.4);
+                    outline-offset: 0;
                 }
 
-                .main-header-left {
-                    font-size: 1.4rem;
-                    font-weight: 800;
-                    font-style: italic;
+                .content-print-area.hide-guide {
+                    outline: none !important;
                 }
 
-                .main-header-right {
-                    font-size: 1.4rem;
+                /* 1. 상단 타이틀 & 회중명 */
+                .print-header {
+                    display: flex;
+                    flex-direction: column;
+                    align-items: center;
+                    position: relative;
+                    margin-bottom: 8px;
+                    padding-bottom: 6px;
+                    border-bottom: 2.5px solid #3b82f6;
+                    flex-shrink: 0;
+                }
+
+                .title-main {
+                    font-size: 28pt;
                     font-weight: 800;
-                    font-style: italic;
-                    letter-spacing: 0.05em;
+                    color: #1e3a8a;
+                    letter-spacing: 3px;
+                    line-height: 1.15;
+                    margin: 0;
+                    padding: 2px 0 4px;
+                    text-align: center;
+                }
+
+                .cong-sub-wrap {
+                    width: 100%;
+                    display: flex;
+                    justify-content: flex-end;
+                    align-items: center;
+                    margin-top: -2px;
+                }
+
+                .cong-badge {
+                    font-size: 13pt;
+                    font-weight: 700;
+                    color: #334155;
+                    letter-spacing: 0.5px;
+                }
+
+                .table-container {
+                    width: 100%;
+                    flex: 1;
+                    display: flex;
+                    flex-direction: column;
+                    overflow: hidden;
                 }
 
                 .data-table {
                     width: 100%;
+                    height: 100%;
                     border-collapse: collapse;
-                    margin-top: 4px;
+                    table-layout: fixed;
+                }
+
+                /* 2. 항목 헤드행 */
+                .data-table thead tr {
+                    height: 38px;
+                    flex-shrink: 0;
                 }
 
                 .data-table th {
-                    background-color: #f2f2f2;
-                    border: 1px solid #333;
+                    background-color: #dbeafe !important;
+                    color: #1e3a8a;
+                    border: 1px solid #93c5fd;
                     font-weight: 700;
-                    font-size: 0.88rem;
-                    padding: 8px 4px;
+                    font-size: 0.92rem;
+                    padding: 4px 2px;
                     text-align: center;
+                    vertical-align: middle;
+                    letter-spacing: 0.5px;
+                }
+
+                /* 3. 본문 각 행: 반응형 동일 높이 계산 */
+                .data-table tbody tr {
+                    box-sizing: border-box;
                 }
 
                 .data-table td {
-                    border: 1px solid #333;
-                    padding: 8px 4px;
+                    border: 1px solid #cbd5e1;
+                    padding: 2px 6px;
                     vertical-align: middle;
+                    font-size: 0.88rem;
+                    box-sizing: border-box;
+                    overflow: hidden;
                 }
 
-                .month-border-top td {
-                    border-top: 3px double #000 !important;
+                /* 4. 날짜열 */
+                .data-table td.col-date {
+                    background-color: #eff6ff !important;
+                    color: #1d4ed8;
+                    font-weight: 600;
+                    text-align: center;
+                    border-left: 1.5px solid #93c5fd;
+                    border-right: 1.5px solid #93c5fd;
+                    font-size: 0.88rem;
+                }
+
+                /* 5. 월단위 연한 배경색 구분 */
+                .month-even {
+                    background-color: #ffffff;
+                }
+                
+                .month-odd {
+                    background-color: #f8fafc;
+                }
+
+                /* 월 경계선 구분 */
+                .month-start td {
+                    border-top: 2.5px solid #60a5fa !important;
+                }
+
+                .col-center {
+                    text-align: center;
+                }
+
+                .col-left {
+                    text-align: left;
+                }
+
+                .col-outline {
+                    font-weight: 600;
+                    color: #334155;
+                    font-size: 0.88rem;
+                }
+
+                .col-topic {
+                    font-weight: 600;
+                    color: #0f172a;
+                    padding-left: 8px;
+                    padding-right: 8px;
+                    line-height: 1.35;
+                    word-break: keep-all;
+                    font-size: 0.88rem;
+                }
+
+                .col-speaker {
+                    font-weight: 700;
+                    color: #0f172a;
+                    font-size: 0.90rem;
+                }
+
+                /* 회중명: 6글자 초과 시 줄바꿈 */
+                .col-cong {
+                    color: #334155;
+                    font-size: 0.86rem;
+                    line-height: 1.25;
+                    text-align: center;
+                    word-break: keep-all;
+                }
+
+                .col-part {
+                    font-size: 0.88rem;
+                    color: #1e293b;
+                    font-weight: 500;
+                    white-space: nowrap;
+                    padding: 2px 6px;
+                }
+
+                .col-interp {
+                    font-size: 0.88rem;
+                    color: #6d28d9;
+                    font-weight: 700;
+                    white-space: nowrap;
+                    padding: 2px 6px;
+                }
+
+                /* ─────────── 인쇄 시 툴바 숨김 및 1페이지 완벽 고정 ─────────── */
+                @media print {
+                    .no-print {
+                        display: none !important;
+                    }
+                    html, body {
+                        width: 100% !important;
+                        height: 100% !important;
+                        margin: 0 !important;
+                        padding: 0 !important;
+                        overflow: hidden !important;
+                        background: #fff !important;
+                    }
+                    .page-viewport {
+                        padding: 0 !important;
+                        margin: 0 !important;
+                        display: block !important;
+                        width: 100% !important;
+                        height: 100% !important;
+                        min-height: auto !important;
+                        overflow: hidden !important;
+                    }
+                    .a4-sheet-paper {
+                        box-shadow: none !important;
+                        border: none !important;
+                        padding: 0 !important;
+                        margin: 0 !important;
+                        width: 100% !important;
+                        height: 100% !important;
+                        max-height: 100% !important;
+                        min-height: auto !important;
+                        overflow: hidden !important;
+                        page-break-after: avoid !important;
+                        page-break-inside: avoid !important;
+                        break-after: avoid !important;
+                        break-inside: avoid !important;
+                    }
+                    .content-print-area {
+                        outline: none !important;
+                        width: 100% !important;
+                        height: 100% !important;
+                        overflow: hidden !important;
+                        page-break-after: avoid !important;
+                        page-break-inside: avoid !important;
+                        break-after: avoid !important;
+                        break-inside: avoid !important;
+                    }
+                    .data-table {
+                        page-break-after: avoid !important;
+                        page-break-inside: avoid !important;
+                        break-after: avoid !important;
+                        break-inside: avoid !important;
+                    }
+                    .data-table thead {
+                        display: table-row-group !important;
+                    }
+                    .data-table tr {
+                        page-break-after: avoid !important;
+                        page-break-inside: avoid !important;
+                        break-after: avoid !important;
+                        break-inside: avoid !important;
+                    }
                 }
             </style>
         </head>
         <body>
-            <div class="print-page">
-                <div class="main-header">
-                    <div class="main-header-left">${escapeHtml(congregationName)}</div>
-                    <div class="main-header-right">공개 강연 계획표 (주말집회)</div>
+            <!-- 상단 실시간 조절 툴바 -->
+            <div class="print-toolbar no-print">
+                <div class="toolbar-group">
+                    <div class="toolbar-item">
+                        <label title="상단 여백"><i class="fas fa-arrow-up"></i> 상:</label>
+                        <input type="number" id="ctrl-margin-top" class="toolbar-input" value="${initMarginTop}" min="0" max="35" step="1" style="width: 42px;">
+                    </div>
+                    <div class="toolbar-item">
+                        <label title="하단 여백"><i class="fas fa-arrow-down"></i> 하:</label>
+                        <input type="number" id="ctrl-margin-bottom" class="toolbar-input" value="${initMarginBottom}" min="0" max="35" step="1" style="width: 42px;">
+                    </div>
+                    <div class="toolbar-item">
+                        <label title="좌측 여백"><i class="fas fa-arrow-left"></i> 좌:</label>
+                        <input type="number" id="ctrl-margin-left" class="toolbar-input" value="${initMarginLeft}" min="0" max="35" step="1" style="width: 42px;">
+                    </div>
+                    <div class="toolbar-item">
+                        <label title="우측 여백"><i class="fas fa-arrow-right"></i> 우:</label>
+                        <input type="number" id="ctrl-margin-right" class="toolbar-input" value="${initMarginRight}" min="0" max="35" step="1" style="width: 42px;">
+                    </div>
+
+                    <div class="toolbar-item" style="margin-left: 4px;">
+                        <label><i class="fas fa-palette"></i> 테마:</label>
+                        <select id="ctrl-theme" class="toolbar-input" style="width: 110px; cursor: pointer;">
+                            <option value="blue" ${initTheme === 'blue' ? 'selected' : ''}>🔵 블루</option>
+                            <option value="green" ${initTheme === 'green' ? 'selected' : ''}>🟢 그린</option>
+                            <option value="purple" ${initTheme === 'purple' ? 'selected' : ''}>🟣 퍼플</option>
+                            <option value="slate" ${initTheme === 'slate' ? 'selected' : ''}>🟤 슬레이트</option>
+                            <option value="amber" ${initTheme === 'amber' ? 'selected' : ''}>🟠 웜 엠버</option>
+                            <option value="custom" ${initTheme === 'custom' ? 'selected' : ''}>🎨 직접 선택</option>
+                        </select>
+                        <input type="color" id="ctrl-custom-color" value="${initCustomColor}" style="width: 24px; height: 24px; border: 1px solid #475569; border-radius: 4px; cursor: pointer; padding: 0; background: none; ${initTheme === 'custom' ? '' : 'display: none;'}">
+                    </div>
+
+                    <div class="toolbar-item" style="margin-left: 4px;">
+                        <label><i class="fas fa-expand-alt"></i> 행:</label>
+                        <select id="ctrl-row-mode" class="toolbar-input" style="width: 120px; cursor: pointer;">
+                            <option value="fill" ${rowMode === 'fill' ? 'selected' : ''}>A4 꽉 채움</option>
+                            <option value="compact" ${rowMode === 'compact' ? 'selected' : ''}>조밀 (50px)</option>
+                            <option value="standard" ${rowMode === 'standard' ? 'selected' : ''}>표준 (54px)</option>
+                            <option value="relaxed" ${rowMode === 'relaxed' ? 'selected' : ''}>여유 (58px)</option>
+                        </select>
+                    </div>
+
+                    <div class="toolbar-item">
+                        <label><i class="fas fa-text-height"></i> 글자:</label>
+                        <input type="range" id="ctrl-font-scale" min="80" max="125" value="100" step="5" style="width: 55px; cursor: pointer;">
+                        <span id="lbl-font-scale" style="min-width: 30px; font-weight: 600; color: #38bdf8; font-size: 0.75rem;">100%</span>
+                    </div>
+
+                    <div class="toolbar-item">
+                        <label style="cursor: pointer; display: flex; align-items: center; gap: 3px;">
+                            <input type="checkbox" id="ctrl-show-guide" checked style="cursor: pointer;">
+                            <span>점선</span>
+                        </label>
+                    </div>
                 </div>
-                <table class="data-table">
-                    <thead>
-                        <tr>
-                            <th style="width: 85px;">날짜</th>
-                            <th style="width: 45px;">골자</th>
-                            <th style="width: 250px;">공개 강연 주제</th>
-                            <th style="width: 80px;">연사</th>
-                            <th style="width: 100px;">회중</th>
-                            <th style="width: 75px;">사회</th>
-                            <th style="width: 75px;">파수대</th>
-                            <th style="width: 75px;">낭독</th>
-                            <th style="width: 75px;">기도</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        ${rowsHtml}
-                    </tbody>
-                </table>
+
+                <div class="toolbar-group">
+                    <button class="toolbar-btn btn-print" onclick="window.print()">
+                        <i class="fas fa-print"></i> 지금 인쇄하기
+                    </button>
+                    <button class="toolbar-btn btn-close" onclick="window.close()">
+                        닫기
+                    </button>
+                </div>
+            </div>
+
+            <!-- A4 실제 종이 시각화 뷰포트 -->
+            <div class="page-viewport">
+                <div class="a4-sheet-paper" id="a4-paper-target">
+                    <div class="content-print-area" id="content-area-target">
+                        <div class="print-header" id="print-header-target">
+                            <div class="title-main">공개 강연 계획표</div>
+                            <div class="cong-sub-wrap">
+                                <span class="cong-badge">${escapeHtml(congregationName)}</span>
+                            </div>
+                        </div>
+                        <div class="table-container" id="table-container-target">
+                            <table class="data-table" id="data-table-target">
+                                <thead>
+                                    <tr>
+                                        ${includeInterp ? `
+                                            <th style="width: 10.0%;">날짜</th>
+                                            <th style="width: 6.0%;">골자</th>
+                                            <th style="width: 28.0%;">공개 강연 주제</th>
+                                            <th style="width: 10.0%;">연사</th>
+                                            <th style="width: 14.0%;">회중</th>
+                                            <th style="width: 8.5%;">통역</th>
+                                            <th style="width: 8.0%;">사회</th>
+                                            <th style="width: 8.0%;">파수대</th>
+                                            <th style="width: 7.5%;">기도</th>
+                                        ` : `
+                                            <th style="width: 10.0%;">날짜</th>
+                                            <th style="width: 6.0%;">골자</th>
+                                            <th style="width: 28.5%;">공개 강연 주제</th>
+                                            <th style="width: 10.0%;">연사</th>
+                                            <th style="width: 14.5%;">회중</th>
+                                            <th style="width: 8.0%;">사회</th>
+                                            <th style="width: 8.0%;">파수대</th>
+                                            <th style="width: 7.5%;">낭독</th>
+                                            <th style="width: 7.5%;">기도</th>
+                                        `}
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    ${rowsHtml}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
             </div>
             
             <script>
-                window.onload = function() {
-                    const page = document.querySelector('.print-page');
-                    const table = document.querySelector('.data-table');
-                    const scaleMode = '${scaleMode}';
-                    const maxH = 960; // portrait printable height
-                    
-                    let fontSize = 13.0;
-                    let padding = 8.0;
-                    
-                    // 1단계: 세로 영역을 초과하는 대용량인 경우 축소
-                    let attempts = 0;
-                    while (page.scrollHeight > maxH && fontSize > 9.0 && attempts < 100) {
-                        fontSize -= 0.2;
-                        if (padding > 3.0) padding -= 0.2;
-                        
-                        table.style.fontSize = fontSize + 'px';
-                        table.querySelectorAll('td').forEach(td => {
-                            td.style.paddingTop = padding + 'px';
-                            td.style.paddingBottom = padding + 'px';
-                        });
-                        attempts++;
-                    }
-                    
-                    // 2단계: 여백 채우기 모드인 경우 꽉 찰 때까지 확대
-                    if (scaleMode === 'scale') {
-                        attempts = 0;
-                        while (maxH - page.scrollHeight > 10 && fontSize < 24 && attempts < 100) {
-                            fontSize += 0.2;
-                            padding += 0.2;
-                            
-                            table.style.fontSize = fontSize + 'px';
-                            table.querySelectorAll('td').forEach(td => {
-                                td.style.paddingTop = padding + 'px';
-                                td.style.paddingBottom = padding + 'px';
-                            });
-                            
-                            if (page.scrollHeight > maxH) {
-                                fontSize -= 0.2;
-                                padding -= 0.2;
-                                table.style.fontSize = fontSize + 'px';
-                                table.querySelectorAll('td').forEach(td => {
-                                    td.style.paddingTop = padding + 'px';
-                                    td.style.paddingBottom = padding + 'px';
-                                });
-                                break;
-                            }
-                            attempts++;
-                        }
-                    }
-                    
-                    setTimeout(function() {
-                        window.print();
-                    }, 400);
+                const rowCount = ${weekendList.length};
+                
+                function hexToRgba(hex, alpha) {
+                    let c = hex.replace('#', '');
+                    if (c.length === 3) c = c.split('').map(x => x + x).join('');
+                    const num = parseInt(c, 16);
+                    return 'rgba(' + ((num >> 16) & 255) + ', ' + ((num >> 8) & 255) + ', ' + (num & 255) + ', ' + alpha + ')';
                 }
+
+                function getThemePalette(themeName, customHex) {
+                    switch (themeName) {
+                        case 'green':
+                            return {
+                                title: '#065f46',
+                                headerBorder: '#10b981',
+                                thBg: '#d1fae5',
+                                thText: '#065f46',
+                                thBorder: '#a7f3d0',
+                                dateBg: '#f0fdf4',
+                                dateText: '#047857',
+                                monthBorder: '#34d399',
+                                guide: 'rgba(16, 185, 129, 0.4)'
+                            };
+                        case 'purple':
+                            return {
+                                title: '#581c87',
+                                headerBorder: '#8b5cf6',
+                                thBg: '#f3e8ff',
+                                thText: '#581c87',
+                                thBorder: '#ddd6fe',
+                                dateBg: '#faf5ff',
+                                dateText: '#6d28d9',
+                                monthBorder: '#a78bfa',
+                                guide: 'rgba(139, 92, 246, 0.4)'
+                            };
+                        case 'slate':
+                            return {
+                                title: '#0f172a',
+                                headerBorder: '#475569',
+                                thBg: '#e2e8f0',
+                                thText: '#0f172a',
+                                thBorder: '#cbd5e1',
+                                dateBg: '#f8fafc',
+                                dateText: '#334155',
+                                monthBorder: '#94a3b8',
+                                guide: 'rgba(100, 116, 139, 0.4)'
+                            };
+                        case 'amber':
+                            return {
+                                title: '#78350f',
+                                headerBorder: '#d97706',
+                                thBg: '#fef3c7',
+                                thText: '#78350f',
+                                thBorder: '#fde68a',
+                                dateBg: '#fffbeb',
+                                dateText: '#b45309',
+                                monthBorder: '#f59e0b',
+                                guide: 'rgba(217, 119, 6, 0.4)'
+                            };
+                        case 'custom':
+                            return {
+                                title: customHex,
+                                headerBorder: customHex,
+                                thBg: hexToRgba(customHex, 0.18),
+                                thText: customHex,
+                                thBorder: hexToRgba(customHex, 0.45),
+                                dateBg: hexToRgba(customHex, 0.08),
+                                dateText: customHex,
+                                monthBorder: hexToRgba(customHex, 0.65),
+                                guide: hexToRgba(customHex, 0.4)
+                            };
+                        case 'blue':
+                        default:
+                            return {
+                                title: '#1e3a8a',
+                                headerBorder: '#3b82f6',
+                                thBg: '#dbeafe',
+                                thText: '#1e3a8a',
+                                thBorder: '#93c5fd',
+                                dateBg: '#eff6ff',
+                                dateText: '#1d4ed8',
+                                monthBorder: '#60a5fa',
+                                guide: 'rgba(59, 130, 246, 0.4)'
+                            };
+                    }
+                }
+                
+                function applyResponsiveLayout() {
+                    const marginTop = parseInt(document.getElementById('ctrl-margin-top').value || 10, 10);
+                    const marginBottom = parseInt(document.getElementById('ctrl-margin-bottom').value || 10, 10);
+                    const marginLeft = parseInt(document.getElementById('ctrl-margin-left').value || 12, 10);
+                    const marginRight = parseInt(document.getElementById('ctrl-margin-right').value || 12, 10);
+                    const rowMode = document.getElementById('ctrl-row-mode').value;
+                    const fontScale = parseInt(document.getElementById('ctrl-font-scale').value || 100, 10);
+                    const showGuide = document.getElementById('ctrl-show-guide').checked;
+                    const themeName = document.getElementById('ctrl-theme').value;
+                    const customHex = document.getElementById('ctrl-custom-color').value || '#2563eb';
+
+                    // Toggle custom color picker in toolbar
+                    const customColorInput = document.getElementById('ctrl-custom-color');
+                    customColorInput.style.display = (themeName === 'custom') ? 'inline-block' : 'none';
+
+                    document.getElementById('lbl-font-scale').textContent = fontScale + '%';
+
+                    // Dynamic Theme Palette CSS Injection
+                    const pal = getThemePalette(themeName, customHex);
+                    let themeStyle = document.getElementById('dyn-theme-style');
+                    if (!themeStyle) {
+                        themeStyle = document.createElement('style');
+                        themeStyle.id = 'dyn-theme-style';
+                        document.head.appendChild(themeStyle);
+                    }
+                    themeStyle.innerHTML = 
+                        '.title-main { color: ' + pal.title + ' !important; }' +
+                        '.print-header { border-bottom-color: ' + pal.headerBorder + ' !important; }' +
+                        '.data-table th { background-color: ' + pal.thBg + ' !important; color: ' + pal.thText + ' !important; border-color: ' + pal.thBorder + ' !important; }' +
+                        '.data-table td.col-date { background-color: ' + pal.dateBg + ' !important; color: ' + pal.dateText + ' !important; border-left-color: ' + pal.thBorder + ' !important; border-right-color: ' + pal.thBorder + ' !important; }' +
+                        '.month-start td { border-top-color: ' + pal.monthBorder + ' !important; }' +
+                        '.content-print-area { outline-color: ' + pal.guide + ' !important; }';
+
+                    // Update @page margin via dynamic style element
+                    let dynStyle = document.getElementById('dyn-print-style');
+                    if (!dynStyle) {
+                        dynStyle = document.createElement('style');
+                        dynStyle.id = 'dyn-print-style';
+                        document.head.appendChild(dynStyle);
+                    }
+                    dynStyle.innerHTML = '@page { size: A4 portrait; margin: ' + marginTop + 'mm ' + marginRight + 'mm ' + marginBottom + 'mm ' + marginLeft + 'mm !important; }';
+
+                    // Update visible A4 paper sheet padding to simulate margin on screen
+                    const paper = document.getElementById('a4-paper-target');
+                    paper.style.padding = marginTop + 'mm ' + marginRight + 'mm ' + marginBottom + 'mm ' + marginLeft + 'mm';
+
+                    // Toggle guide outline
+                    const contentArea = document.getElementById('content-area-target');
+                    if (showGuide) {
+                        contentArea.classList.remove('hide-guide');
+                    } else {
+                        contentArea.classList.add('hide-guide');
+                    }
+
+                    // Calculate accurate available height for table (with safety buffer to guarantee single page)
+                    const header = document.getElementById('print-header-target');
+                    const headerHeight = header.offsetHeight || 60;
+                    const availableH = contentArea.clientHeight - headerHeight - 40 - 12; // 12px safe buffer
+
+                    const table = document.getElementById('data-table-target');
+                    const trList = table.querySelectorAll('tbody tr');
+                    let targetRowHeight = 50;
+
+                    if (rowMode === 'fill') {
+                        targetRowHeight = Math.floor(availableH / rowCount);
+                        if (targetRowHeight < 34) targetRowHeight = 34;
+                    } else if (rowMode === 'compact') {
+                        targetRowHeight = 48;
+                    } else if (rowMode === 'standard') {
+                        targetRowHeight = 52;
+                    } else if (rowMode === 'relaxed') {
+                        targetRowHeight = 56;
+                    }
+
+                    // Apply 100% IDENTICAL height across ALL rows
+                    trList.forEach(tr => {
+                        tr.style.height = targetRowHeight + 'px';
+                        tr.querySelectorAll('td').forEach(td => {
+                            td.style.height = targetRowHeight + 'px';
+                            td.style.paddingTop = Math.max(1, Math.floor(targetRowHeight * 0.06)) + 'px';
+                            td.style.paddingBottom = Math.max(1, Math.floor(targetRowHeight * 0.06)) + 'px';
+                        });
+                    });
+
+                    // Base font size scaling across ALL columns & headers
+                    const baseFont = 13.0 * (fontScale / 100.0);
+                    
+                    let fontStyle = document.getElementById('dyn-font-style');
+                    if (!fontStyle) {
+                        fontStyle = document.createElement('style');
+                        fontStyle.id = 'dyn-font-style';
+                        document.head.appendChild(fontStyle);
+                    }
+                    fontStyle.innerHTML = 
+                        '.data-table th { font-size: ' + (baseFont * 1.02) + 'px !important; }' +
+                        '.data-table td { font-size: ' + baseFont + 'px !important; }' +
+                        '.col-date { font-size: ' + (baseFont * 0.96) + 'px !important; }' +
+                        '.col-outline { font-size: ' + (baseFont * 0.98) + 'px !important; }' +
+                        '.col-topic { font-size: ' + (baseFont * 0.98) + 'px !important; }' +
+                        '.col-speaker { font-size: ' + (baseFont * 1.02) + 'px !important; }' +
+                        '.col-cong { font-size: ' + (baseFont * 0.95) + 'px !important; }' +
+                        '.col-part { font-size: ' + (baseFont * 0.98) + 'px !important; }' +
+                        '.col-interp { font-size: ' + (baseFont * 0.98) + 'px !important; }';
+                }
+
+                // Attach event listeners for real-time reactivity
+                document.getElementById('ctrl-margin-top').addEventListener('input', applyResponsiveLayout);
+                document.getElementById('ctrl-margin-bottom').addEventListener('input', applyResponsiveLayout);
+                document.getElementById('ctrl-margin-left').addEventListener('input', applyResponsiveLayout);
+                document.getElementById('ctrl-margin-right').addEventListener('input', applyResponsiveLayout);
+                document.getElementById('ctrl-theme').addEventListener('change', applyResponsiveLayout);
+                document.getElementById('ctrl-custom-color').addEventListener('input', applyResponsiveLayout);
+                document.getElementById('ctrl-row-mode').addEventListener('change', applyResponsiveLayout);
+                document.getElementById('ctrl-font-scale').addEventListener('input', applyResponsiveLayout);
+                document.getElementById('ctrl-show-guide').addEventListener('change', applyResponsiveLayout);
+
+                window.onload = function() {
+                    applyResponsiveLayout();
+                };
             <\/script>
         </body>
         </html>
