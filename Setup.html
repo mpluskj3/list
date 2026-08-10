@@ -865,7 +865,9 @@ ALTER TABLE public.database_connections DISABLE ROW LEVEL SECURITY;`;
             const url = document.getElementById('supabase-url').value.trim();
             const key = document.getElementById('supabase-key').value.trim();
             if (url && key && window.supabase) {
-                activeSupabaseClient = window.supabase.createClient(url, key);
+                activeSupabaseClient = window.supabase.createClient(url, key, {
+                    auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false }
+                });
                 return activeSupabaseClient;
             }
             return null;
@@ -878,7 +880,9 @@ ALTER TABLE public.database_connections DISABLE ROW LEVEL SECURITY;`;
             document.getElementById('supabase-key').value = savedKey;
 
             if (savedUrl && savedKey && window.supabase) {
-                activeSupabaseClient = window.supabase.createClient(savedUrl, savedKey);
+                activeSupabaseClient = window.supabase.createClient(savedUrl, savedKey, {
+                    auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false }
+                });
             }
         }
 
@@ -963,7 +967,9 @@ ALTER TABLE public.database_connections DISABLE ROW LEVEL SECURITY;`;
             statusBox.innerHTML = '<i class="fas fa-spinner fa-spin fa-lg"></i> <div>데이터베이스 연결을 테스트하는 중입니다...</div>';
 
             try {
-                const client = window.supabase.createClient(url, key);
+                const client = window.supabase.createClient(url, key, {
+                    auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false }
+                });
                 const startTime = performance.now();
                 
                 // Probe query
@@ -1005,7 +1011,9 @@ ALTER TABLE public.database_connections DISABLE ROW LEVEL SECURITY;`;
                 document.getElementById('supabase-key').value = SUPABASE_CONFIG.SUPABASE_KEY;
                 localStorage.removeItem('CUSTOM_SUPABASE_URL');
                 localStorage.removeItem('CUSTOM_SUPABASE_KEY');
-                activeSupabaseClient = window.supabase.createClient(SUPABASE_CONFIG.SUPABASE_URL, SUPABASE_CONFIG.SUPABASE_KEY);
+                activeSupabaseClient = window.supabase.createClient(SUPABASE_CONFIG.SUPABASE_URL, SUPABASE_CONFIG.SUPABASE_KEY, {
+                    auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false }
+                });
                 alert('기본 supabase_config.js 파일 설정으로 초기화되었습니다.');
                 testAndSaveConnection();
             } else {

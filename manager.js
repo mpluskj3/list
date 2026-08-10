@@ -374,18 +374,22 @@ async function handleLogin() {
     try {
         // 1. 먼저 defaultSupabaseClient를 사용하여 database_connections에 등록된 설정이 있는지 확인합니다.
         let isCustomDb = false;
+        let dbConfig = null;
         if (defaultSupabaseClient) {
-            const { data: dbConfig, error: dbErr } = await defaultSupabaseClient
+            const { data: matchedDb, error: dbErr } = await defaultSupabaseClient
                 .from('database_connections')
                 .select('*')
                 .eq('username', name)
                 .eq('password', pw)
                 .maybeSingle();
 
-            if (dbConfig && dbConfig.supabase_url && dbConfig.supabase_key) {
+            if (matchedDb && matchedDb.supabase_url && matchedDb.supabase_key) {
+                dbConfig = matchedDb;
                 console.log('[Login] 커스텀 DB 정보 발견:', dbConfig.supabase_url);
                 // Active 클라이언트를 커스텀 DB로 전환
-                supabaseClient = window.supabase.createClient(dbConfig.supabase_url, dbConfig.supabase_key);
+                supabaseClient = window.supabase.createClient(dbConfig.supabase_url, dbConfig.supabase_key, {
+                    auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false }
+                });
                 APP_CONFIG.SUPABASE_URL = dbConfig.supabase_url;
                 APP_CONFIG.SUPABASE_KEY = dbConfig.supabase_key;
 
@@ -407,19 +411,38 @@ async function handleLogin() {
         if (data) {
             adminInfo = {
                 name: data.username,
-                role: data.role,
+                role: data.role || 'superadmin',
                 can_manage_weekday: data.can_manage_weekday !== false, // 기본값 true
                 can_manage_weekend: data.can_manage_weekend !== false  // 기본값 true
             };
             localStorage.setItem('adminInfo', JSON.stringify(adminInfo));
             sessionStorage.setItem('adminInfo', JSON.stringify(adminInfo));
             showManagerContent();
-        } else {
-            if (isCustomDb) {
-                alert('데이터베이스 연결은 확인되었으나, 해당 데이터베이스의 admin_users 테이블에 일치하는 관리자 계정이 없습니다.\n초기 데이터를 생성(Seed)했는지 확인해 주세요.');
-            } else {
-                alert('이름 또는 비밀번호가 일치하지 않습니다.');
+        } else if (isCustomDb && dbConfig) {
+            // DB 연결은 확인되었으나 admin_users에 계정이 없는 경우, 해당 관리자 계정을 커스텀 DB의 admin_users에 자동 동기화/생성 후 로그인
+            console.log('[Login] 커스텀 DB에 관리자 계정 자동 생성 및 동기화 진행');
+            try {
+                await supabaseClient.from('admin_users').upsert([{
+                    username: name,
+                    password: pw,
+                    role: 'superadmin',
+                    can_manage_weekday: true,
+                    can_manage_weekend: true
+                }]);
+            } catch (autoErr) {
+                console.warn('[Login] admin_users 자동 생성 실패:', autoErr);
             }
+            adminInfo = {
+                name: name,
+                role: 'superadmin',
+                can_manage_weekday: true,
+                can_manage_weekend: true
+            };
+            localStorage.setItem('adminInfo', JSON.stringify(adminInfo));
+            sessionStorage.setItem('adminInfo', JSON.stringify(adminInfo));
+            showManagerContent();
+        } else {
+            alert('이름 또는 비밀번호가 일치하지 않습니다.');
         }
     } catch (error) {
         console.error('Login error:', error);
@@ -2389,9 +2412,10 @@ async function processOutlinesBulk() {
 
 }
 
-async function loadAdminAccounts() {
-    if (adminInfo.role !== 'superadmin') return;
+let deletedAdminUsernames = [];
 
+async function loadAdminAccounts() {
+    if (!adminInfo || adminInfo.role !== 'superadmin') return;
 
     try {
         const { data, error } = await supabaseClient
@@ -2402,37 +2426,37 @@ async function loadAdminAccounts() {
         if (error) throw error;
         adminUsers = data || [];
         deletedAdminIds = [];
+        deletedAdminUsernames = [];
         renderAdminAccountsTable();
     } catch (e) {
         console.error(e);
-        alert('계정 정보를 불러오는 중 오류 발생');
+        alert('계정 정보를 불러오는 중 오류 발생: ' + (e.message || e));
     }
-
 }
 
 function renderAdminAccountsTable() {
     const tbody = document.querySelector('#admin-accounts-table tbody');
+    if (!tbody) return;
     tbody.innerHTML = '';
 
     adminUsers.forEach((user, idx) => {
         const tr = document.createElement('tr');
-
         const isSelf = user.username === adminInfo.name;
 
         tr.innerHTML = `
-            <td><input type="text" value="${escapeHtml(user.username)}" onchange="updateAdminUserData(${idx}, 'username', this.value)" ${isSelf ? 'disabled' : ''}></td>
-            <td><input type="text" value="${escapeHtml(user.password)}" onchange="updateAdminUserData(${idx}, 'password', this.value)"></td>
+            <td><input type="text" class="admin-input-username" data-idx="${idx}" value="${escapeHtml(user.username)}" oninput="updateAdminUserData(${idx}, 'username', this.value)" onchange="updateAdminUserData(${idx}, 'username', this.value)" ${isSelf ? 'disabled' : ''} placeholder="아이디/이름"></td>
+            <td><input type="text" class="admin-input-password" data-idx="${idx}" value="${escapeHtml(user.password)}" oninput="updateAdminUserData(${idx}, 'password', this.value)" onchange="updateAdminUserData(${idx}, 'password', this.value)" placeholder="비밀번호"></td>
             <td>
-                <select onchange="updateAdminUserData(${idx}, 'role', this.value)">
+                <select class="admin-select-role" data-idx="${idx}" onchange="updateAdminUserData(${idx}, 'role', this.value)">
                     <option value="superadmin" ${user.role === 'superadmin' ? 'selected' : ''}>최고관리자</option>
                     <option value="admin" ${user.role !== 'superadmin' ? 'selected' : ''}>일반관리자</option>
                 </select>
             </td>
             <td style="text-align:center;">
-                <input type="checkbox" ${user.can_manage_weekday !== false ? 'checked' : ''} onchange="updateAdminUserData(${idx}, 'can_manage_weekday', this.checked)">
+                <input type="checkbox" class="admin-check-weekday" data-idx="${idx}" ${user.can_manage_weekday !== false ? 'checked' : ''} onchange="updateAdminUserData(${idx}, 'can_manage_weekday', this.checked)">
             </td>
             <td style="text-align:center;">
-                <input type="checkbox" ${user.can_manage_weekend !== false ? 'checked' : ''} onchange="updateAdminUserData(${idx}, 'can_manage_weekend', this.checked)">
+                <input type="checkbox" class="admin-check-weekend" data-idx="${idx}" ${user.can_manage_weekend !== false ? 'checked' : ''} onchange="updateAdminUserData(${idx}, 'can_manage_weekend', this.checked)">
             </td>
             <td style="text-align:center;">
                 ${isSelf ? '-' : `<span class="btn-delete" onclick="deleteAdminAccount(${idx})"><i class="fas fa-trash"></i></span>`}
@@ -2443,13 +2467,16 @@ function renderAdminAccountsTable() {
 }
 
 window.updateAdminUserData = (idx, field, value) => {
-    adminUsers[idx][field] = value;
+    if (adminUsers[idx]) {
+        adminUsers[idx][field] = value;
+    }
 };
 
 window.deleteAdminAccount = (idx) => {
     if (!confirm('이 계정을 삭제하시겠습니까?')) return;
     const user = adminUsers[idx];
     if (user.id) deletedAdminIds.push(user.id);
+    if (user.username) deletedAdminUsernames.push(user.username.trim());
     adminUsers.splice(idx, 1);
     renderAdminAccountsTable();
 };
@@ -2466,32 +2493,114 @@ function addAdminAccountRow() {
 }
 
 async function saveAdminAccounts() {
+    // 1. DOM의 실제 입력값으로 adminUsers 배열 완벽 동기화
+    const rows = document.querySelectorAll('#admin-accounts-table tbody tr');
+    rows.forEach((row, idx) => {
+        if (!adminUsers[idx]) return;
+        const uInput = row.querySelector('.admin-input-username');
+        const pInput = row.querySelector('.admin-input-password');
+        const rSelect = row.querySelector('.admin-select-role');
+        const wCheck = row.querySelector('.admin-check-weekday');
+        const weCheck = row.querySelector('.admin-check-weekend');
+
+        if (uInput && !uInput.disabled) adminUsers[idx].username = uInput.value.trim();
+        if (pInput) adminUsers[idx].password = pInput.value.trim();
+        if (rSelect) adminUsers[idx].role = rSelect.value;
+        if (wCheck) adminUsers[idx].can_manage_weekday = wCheck.checked;
+        if (weCheck) adminUsers[idx].can_manage_weekend = weCheck.checked;
+    });
+
+    // 2. 유효성 검사 (빈 값 및 중복 체크)
+    const seenUsernames = new Set();
+    for (let i = 0; i < adminUsers.length; i++) {
+        const u = adminUsers[i];
+        if (!u.username || !u.username.trim()) {
+            alert(`[${i + 1}번째 행] 이름(ID)을 입력해 주세요.`);
+            return;
+        }
+        if (!u.password || !u.password.trim()) {
+            alert(`[${i + 1}번째 행 (${u.username})] 비밀번호를 입력해 주세요.`);
+            return;
+        }
+        const trimmedU = u.username.trim();
+        if (seenUsernames.has(trimmedU)) {
+            alert(`계정 이름 "${trimmedU}"이(가) 중복되어 있습니다. 서로 다른 이름을 사용해 주세요.`);
+            return;
+        }
+        seenUsernames.add(trimmedU);
+    }
 
     try {
+        // 3. 삭제 처리
         if (deletedAdminIds.length > 0) {
-            await supabaseClient.from('admin_users').delete().in('id', deletedAdminIds);
+            const { error: delErr } = await supabaseClient.from('admin_users').delete().in('id', deletedAdminIds);
+            if (delErr) console.warn('[AdminAccounts] Delete error:', delErr);
             deletedAdminIds = [];
         }
 
-        const toInsert = adminUsers.filter(u => !u.id);
-        const toUpdate = adminUsers.filter(u => u.id);
+        // 4. 추가 및 수정 처리
+        const toInsert = adminUsers.filter(u => !u.id).map(u => ({
+            username: u.username.trim(),
+            password: u.password.trim(),
+            role: u.role,
+            can_manage_weekday: u.can_manage_weekday !== false,
+            can_manage_weekend: u.can_manage_weekend !== false
+        }));
+        const toUpdate = adminUsers.filter(u => u.id).map(u => ({
+            id: u.id,
+            username: u.username.trim(),
+            password: u.password.trim(),
+            role: u.role,
+            can_manage_weekday: u.can_manage_weekday !== false,
+            can_manage_weekend: u.can_manage_weekend !== false
+        }));
 
         if (toInsert.length > 0) {
-            const { error } = await supabaseClient.from('admin_users').insert(toInsert);
-            if (error) throw error;
+            const { error: insErr } = await supabaseClient.from('admin_users').insert(toInsert);
+            if (insErr) throw insErr;
         }
         if (toUpdate.length > 0) {
-            const { error } = await supabaseClient.from('admin_users').upsert(toUpdate);
-            if (error) throw error;
+            const { error: updErr } = await supabaseClient.from('admin_users').upsert(toUpdate);
+            if (updErr) throw updErr;
+        }
+
+        // 5. 커스텀 DB 사용 중인 경우 메인 DB의 database_connections 테이블에도 자동 동기화
+        if (defaultSupabaseClient && (APP_CONFIG.SUPABASE_URL !== defaultUrl || sessionStorage.getItem('SESSION_SUPABASE_URL') || localStorage.getItem('CUSTOM_SUPABASE_URL'))) {
+            try {
+                // 삭제된 사용자 database_connections에서도 제거
+                if (deletedAdminUsernames.length > 0) {
+                    await defaultSupabaseClient
+                        .from('database_connections')
+                        .delete()
+                        .in('username', deletedAdminUsernames);
+                    deletedAdminUsernames = [];
+                }
+
+                // 현재 등록된 모든 관리자 계정을 database_connections에 매핑 등록
+                const webConnsToUpsert = adminUsers.map(u => ({
+                    username: u.username.trim(),
+                    password: u.password.trim(),
+                    supabase_url: APP_CONFIG.SUPABASE_URL,
+                    supabase_key: APP_CONFIG.SUPABASE_KEY
+                }));
+
+                if (webConnsToUpsert.length > 0) {
+                    await defaultSupabaseClient
+                        .from('database_connections')
+                        .upsert(webConnsToUpsert);
+                    console.log('[AdminAccounts] 중앙 database_connections 동기화 완료');
+                }
+            } catch (syncErr) {
+                console.warn('[AdminAccounts] 중앙 database_connections 동기화 건너뜀/오류:', syncErr);
+            }
         }
 
         alert('계정 정보가 성공적으로 저장되었습니다.');
         await loadAdminAccounts();
     } catch (e) {
         console.error(e);
-        alert('저장 중 오류 발생');
+        alert('계정 저장 중 오류 발생: ' + (e.message || e));
     }
-
 }
 let presenceChannel = null;
 
