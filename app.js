@@ -475,11 +475,11 @@ function renderSchedules() {
         const outlineNoStr = w.outline_no ? String(w.outline_no).trim() : '';
         const outlineNoPrefix = outlineNoStr ? `(${escapeHtml(outlineNoStr)}) ` : '';
 
-        const showInterpRow = w.interpreter_name || (localStorage.getItem('CONGREGATION_TYPE') === 'sign_language');
-        const interpHtml = showInterpRow ? `
-            <div class="weekend-summary-row">
-                <div class="weekend-summary-label">수어 통역</div>
-                <div class="weekend-summary-value"><span class="interp-tag-prefix">통역 : </span>${formatAssignee(w.interpreter_name || '미배정')}</div>
+        const interpHtml = w.interpreter_name ? `
+            <div class="weekend-summary-row tight-row" style="padding-top:2px; padding-bottom:8px;">
+                <div class="weekend-summary-value">
+                    <span class="interp-tag-prefix">통역 : </span>${formatAssignee(w.interpreter_name)}
+                </div>
             </div>
         ` : '';
 
@@ -500,7 +500,7 @@ function renderSchedules() {
                 ${outlineNoPrefix}${escapeHtml(topic)}
             </div>
 
-            <div class="weekend-summary-row tight-row" style="padding-bottom:0;">
+            <div class="weekend-summary-row tight-row" style="${w.interpreter_name ? 'border-bottom:none; padding-bottom:2px;' : ''}">
                 <div class="weekend-summary-value">
                     ${formatAssignee(w.speaker)} (${escapeHtml(w.congregation)})
                 </div>
