@@ -23,6 +23,7 @@ let activeHelperFilterOnly = true;
 // 회중 통합 설정 및 기초 데이터 글로벌 상태
 let congregationType = localStorage.getItem('CONGREGATION_TYPE') || 'korean';
 let showInterpTag = localStorage.getItem('SHOW_INTERP_TAG') !== 'false';
+let showWeekdayInterpCheck = localStorage.getItem('SHOW_WEEKDAY_INTERP_CHECK') !== 'false';
 let showSlCheck = localStorage.getItem('SHOW_SL_CHECK') !== 'false';
 let showInterpColumn = localStorage.getItem('SHOW_INTERP_COLUMN') !== 'false';
 let masterItems = JSON.parse(localStorage.getItem('MASTER_ITEMS')) || DEFAULT_MASTER_ITEMS;
@@ -246,6 +247,30 @@ function setupEventListeners() {
     const congTypeSelect = document.getElementById('congregation-type-select');
     if (congTypeSelect) congTypeSelect.addEventListener('change', handleCongregationTypeChange);
 
+    const optTag = document.getElementById('opt-show-interp-tag');
+    if (optTag) optTag.addEventListener('change', (e) => {
+        showInterpTag = e.target.checked;
+        applyCongregationModeUI();
+    });
+
+    const optWeekdayCheck = document.getElementById('opt-show-weekday-interp-check');
+    if (optWeekdayCheck) optWeekdayCheck.addEventListener('change', (e) => {
+        showWeekdayInterpCheck = e.target.checked;
+        applyCongregationModeUI();
+    });
+
+    const optSlCheck = document.getElementById('opt-show-sl-check');
+    if (optSlCheck) optSlCheck.addEventListener('change', (e) => {
+        showSlCheck = e.target.checked;
+        applyCongregationModeUI();
+    });
+
+    const optCol = document.getElementById('opt-show-interp-column');
+    if (optCol) optCol.addEventListener('change', (e) => {
+        showInterpColumn = e.target.checked;
+        applyCongregationModeUI();
+    });
+
     const btnAddMasterCat = document.getElementById('btn-add-master-cat');
     if (btnAddMasterCat) btnAddMasterCat.addEventListener('click', addMasterCategory);
 
@@ -451,9 +476,11 @@ async function handleLogin() {
 }
 
 async function loadAllData() {
-
     try {
-        // Fetch schedules
+        // 1. 앱 설정(회중 유형, 수어 맞춤 설정, 컬럼 설정 등)을 DB에서 먼저 완전히 로드
+        await loadAppSettings();
+
+        // 2. Fetch schedules
         const { data: schData, error: schErr } = await supabaseClient
             .from('schedules')
             .select('*')
@@ -522,6 +549,7 @@ async function loadAppSettings() {
             if (congName) {
                 const el = document.getElementById('congregation-name-input');
                 if (el) el.value = congName;
+                localStorage.setItem('congregationName', congName);
             }
             const typeVal = data.find(s => s.key === 'congregation_type')?.value;
             if (typeVal) {
@@ -529,13 +557,28 @@ async function loadAppSettings() {
                 localStorage.setItem('CONGREGATION_TYPE', typeVal);
             }
             const tagVal = data.find(s => s.key === 'show_interp_tag')?.value;
-            if (tagVal !== undefined) showInterpTag = tagVal === 'true';
+            if (tagVal !== undefined) {
+                showInterpTag = tagVal === 'true';
+                localStorage.setItem('SHOW_INTERP_TAG', showInterpTag ? 'true' : 'false');
+            }
+
+            const weekdayCheckVal = data.find(s => s.key === 'show_weekday_interp_check')?.value;
+            if (weekdayCheckVal !== undefined) {
+                showWeekdayInterpCheck = weekdayCheckVal === 'true';
+                localStorage.setItem('SHOW_WEEKDAY_INTERP_CHECK', showWeekdayInterpCheck ? 'true' : 'false');
+            }
 
             const checkVal = data.find(s => s.key === 'show_sl_check')?.value;
-            if (checkVal !== undefined) showSlCheck = checkVal === 'true';
+            if (checkVal !== undefined) {
+                showSlCheck = checkVal === 'true';
+                localStorage.setItem('SHOW_SL_CHECK', showSlCheck ? 'true' : 'false');
+            }
 
             const colVal = data.find(s => s.key === 'show_interp_column')?.value;
-            if (colVal !== undefined) showInterpColumn = colVal === 'true';
+            if (colVal !== undefined) {
+                showInterpColumn = colVal === 'true';
+                localStorage.setItem('SHOW_INTERP_COLUMN', showInterpColumn ? 'true' : 'false');
+            }
 
             const masterVal = data.find(s => s.key === 'custom_master_items')?.value;
             if (masterVal) {
@@ -544,16 +587,96 @@ async function loadAppSettings() {
                     localStorage.setItem('MASTER_ITEMS', JSON.stringify(masterItems));
                 } catch(e){}
             }
+
+            const fontViewer = data.find(s => s.key === 'font_viewer')?.value;
+            if (fontViewer) {
+                const el = document.getElementById('font-viewer-select');
+                if (el) el.value = fontViewer;
+                localStorage.setItem('fontViewer', fontViewer);
+            }
+
+            const fontManager = data.find(s => s.key === 'font_manager')?.value;
+            if (fontManager) {
+                const el = document.getElementById('font-manager-select');
+                if (el) el.value = fontManager;
+                localStorage.setItem('fontManager', fontManager);
+                ensureFontLoaded(fontManager);
+                applyFontToBody(fontManager);
+            }
+
+            const fontPrint = data.find(s => s.key === 'font_print')?.value;
+            if (fontPrint) {
+                const el = document.getElementById('font-print-select');
+                if (el) el.value = fontPrint;
+                localStorage.setItem('fontPrint', fontPrint);
+            }
+
+            // Sync column configs from DB if saved on server
+            const dbWkday = data.find(s => s.key === 'weekday_cols_config')?.value;
+            if (dbWkday) {
+                try {
+                    weekdayCols = JSON.parse(dbWkday);
+                    localStorage.setItem('weekdayCols', dbWkday);
+                } catch (e) {}
+            }
+
+            const dbWkend = data.find(s => s.key === 'weekend_cols_config')?.value;
+            if (dbWkend) {
+                try {
+                    weekendCols = JSON.parse(dbWkend);
+                    localStorage.setItem('weekendCols', dbWkend);
+                } catch (e) {}
+            }
         }
     } catch(e) {
         console.error('loadAppSettings error:', e);
     }
+
+    // Ensure core SL columns are always present in column arrays
+    if (!weekdayCols.some(c => c.key === 'interpreter')) {
+        const actionIdx = weekdayCols.findIndex(c => c.key === 'action');
+        const interpCol = { key: 'interpreter', label: '통역', width: '40px', isCore: true, className: 'sl-col-weekday-interp', align: 'center' };
+        if (actionIdx !== -1) {
+            weekdayCols.splice(actionIdx, 0, interpCol);
+        } else {
+            weekdayCols.push(interpCol);
+        }
+    }
+    weekdayCols.forEach(c => {
+        if (c.key === 'interpreter') c.className = 'sl-col-weekday-interp';
+    });
+
+    if (!weekendCols.some(c => c.key === 'is_confirmed')) {
+        const topicIdx = weekendCols.findIndex(c => c.key === 'topic');
+        const slCol = { key: 'is_confirmed', label: 'SL', width: '40px', isCore: true, className: 'sl-col-check', align: 'center' };
+        if (topicIdx !== -1) {
+            weekendCols.splice(topicIdx + 1, 0, slCol);
+        } else {
+            weekendCols.push(slCol);
+        }
+    }
+    if (!weekendCols.some(c => c.key === 'interpreter_name')) {
+        const chairmanIdx = weekendCols.findIndex(c => c.key === 'chairman');
+        const interpCol = { key: 'interpreter_name', label: '수어통역', width: '72px', isCore: true, className: 'sl-col-interp', align: 'center' };
+        if (chairmanIdx !== -1) {
+            weekendCols.splice(chairmanIdx + 1, 0, interpCol);
+        } else {
+            weekendCols.push(interpCol);
+        }
+    }
+    weekendCols.forEach(c => {
+        if (c.key === 'is_confirmed') c.className = 'sl-col-check';
+        if (c.key === 'interpreter_name') c.className = 'sl-col-interp';
+    });
 
     const typeSelect = document.getElementById('congregation-type-select');
     if (typeSelect) typeSelect.value = congregationType;
 
     const optTag = document.getElementById('opt-show-interp-tag');
     if (optTag) optTag.checked = showInterpTag;
+
+    const optWeekdayCheck = document.getElementById('opt-show-weekday-interp-check');
+    if (optWeekdayCheck) optWeekdayCheck.checked = showWeekdayInterpCheck;
 
     const optCheck = document.getElementById('opt-show-sl-check');
     if (optCheck) optCheck.checked = showSlCheck;
@@ -571,16 +694,20 @@ function handleCongregationTypeChange(e) {
 
     if (val === 'sign_language') {
         showInterpTag = true;
+        showWeekdayInterpCheck = true;
         showSlCheck = true;
         showInterpColumn = true;
     } else {
         showInterpTag = false;
+        showWeekdayInterpCheck = false;
         showSlCheck = false;
         showInterpColumn = false;
     }
 
     const optTag = document.getElementById('opt-show-interp-tag');
     if (optTag) optTag.checked = showInterpTag;
+    const optWeekdayCheck = document.getElementById('opt-show-weekday-interp-check');
+    if (optWeekdayCheck) optWeekdayCheck.checked = showWeekdayInterpCheck;
     const optCheck = document.getElementById('opt-show-sl-check');
     if (optCheck) optCheck.checked = showSlCheck;
     const optCol = document.getElementById('opt-show-interp-column');
@@ -594,17 +721,8 @@ function handleCongregationTypeChange(e) {
 
 function applyCongregationModeUI() {
     const isSL = congregationType === 'sign_language';
-    const slElements = document.querySelectorAll('.sl-col-check, .sl-col-interp');
 
-    slElements.forEach(el => {
-        el.style.display = isSL ? '' : 'none';
-    });
-
-    const deafGradeElements = document.querySelectorAll('.sl-col-deaf, .sl-col-interp-grade');
-    deafGradeElements.forEach(el => {
-        el.style.display = isSL ? '' : 'none';
-    });
-
+    // 1. 수어회중 옵션 박스 및 등급 관리 표시
     const slOptionsBox = document.getElementById('sign-language-options-box');
     if (slOptionsBox) {
         slOptionsBox.style.display = isSL ? 'block' : 'none';
@@ -614,6 +732,30 @@ function applyCongregationModeUI() {
     if (interpGradesBox) {
         interpGradesBox.style.display = isSL ? 'block' : 'none';
     }
+
+    // 2. 전도인 관리 (농인 여부, 통역 등급)
+    const deafGradeElements = document.querySelectorAll('.sl-col-deaf, .sl-col-interp-grade');
+    deafGradeElements.forEach(el => {
+        el.style.display = isSL ? '' : 'none';
+    });
+
+    // 3. 평일집회 통역 체크박스 컬럼
+    const weekdayInterpElements = document.querySelectorAll('.sl-col-weekday-interp');
+    weekdayInterpElements.forEach(el => {
+        el.style.display = (isSL && showWeekdayInterpCheck) ? '' : 'none';
+    });
+
+    // 4. 주말집회 SL 체크박스 컬럼
+    const slCheckElements = document.querySelectorAll('.sl-col-check');
+    slCheckElements.forEach(el => {
+        el.style.display = (isSL && showSlCheck) ? '' : 'none';
+    });
+
+    // 5. 주말집회 수어통역자 컬럼
+    const interpColElements = document.querySelectorAll('.sl-col-interp');
+    interpColElements.forEach(el => {
+        el.style.display = (isSL && showInterpColumn) ? '' : 'none';
+    });
 }
 
 function renderMasterItemsUI() {
@@ -703,6 +845,7 @@ function deleteMasterInterpGrade(idx) {
 
 async function saveMasterItemsSettings() {
     showInterpTag = document.getElementById('opt-show-interp-tag')?.checked ?? true;
+    showWeekdayInterpCheck = document.getElementById('opt-show-weekday-interp-check')?.checked ?? true;
     showSlCheck = document.getElementById('opt-show-sl-check')?.checked ?? true;
     showInterpColumn = document.getElementById('opt-show-interp-column')?.checked ?? true;
 
@@ -714,6 +857,7 @@ async function saveMasterItemsSettings() {
 
     localStorage.setItem('CONGREGATION_TYPE', congregationType);
     localStorage.setItem('SHOW_INTERP_TAG', showInterpTag ? 'true' : 'false');
+    localStorage.setItem('SHOW_WEEKDAY_INTERP_CHECK', showWeekdayInterpCheck ? 'true' : 'false');
     localStorage.setItem('SHOW_SL_CHECK', showSlCheck ? 'true' : 'false');
     localStorage.setItem('SHOW_INTERP_COLUMN', showInterpColumn ? 'true' : 'false');
     localStorage.setItem('MASTER_ITEMS', JSON.stringify(masterItems));
@@ -736,6 +880,7 @@ async function saveMasterItemsSettings() {
             { key: 'font_print', value: fontPrint, updated_at: now },
             { key: 'congregation_type', value: congregationType, updated_at: now },
             { key: 'show_interp_tag', value: showInterpTag ? 'true' : 'false', updated_at: now },
+            { key: 'show_weekday_interp_check', value: showWeekdayInterpCheck ? 'true' : 'false', updated_at: now },
             { key: 'show_sl_check', value: showSlCheck ? 'true' : 'false', updated_at: now },
             { key: 'show_interp_column', value: showInterpColumn ? 'true' : 'false', updated_at: now },
             { key: 'custom_master_items', value: JSON.stringify(masterItems), updated_at: now }
@@ -745,6 +890,7 @@ async function saveMasterItemsSettings() {
         if (error) console.warn('[MasterItems] DB save warning:', error);
 
         alert('기본 설정 및 기초 데이터가 저장되었습니다.');
+        broadcastChange('회중 설정');
         applyCongregationModeUI();
         renderWeekdayTable();
         renderWeekendTable();
@@ -792,13 +938,16 @@ const defaultWeekdayCols = [
     { key: 'duration', label: '시간', width: '70px', isCore: true, align: 'center' },
     { key: 'assignee_1', label: '배정1', width: '72px', isCore: true, align: 'center' },
     { key: 'assignee_2', label: '배정2', width: '72px', isCore: true, align: 'center' },
-    { key: 'interpreter', label: '통역', width: '40px', isCore: true, className: 'sl-col-interp', align: 'center' },
+    { key: 'interpreter', label: '통역', width: '40px', isCore: true, className: 'sl-col-weekday-interp', align: 'center' },
     { key: 'action', label: '관리', width: '100px', isCore: true, isAction: true, align: 'center' }
 ];
 
 let weekdayCols = JSON.parse(localStorage.getItem('weekdayCols') || 'null') || [...defaultWeekdayCols];
 weekdayCols.forEach(c => {
     c.align = 'center';
+    if (c.key === 'interpreter') {
+        c.className = 'sl-col-weekday-interp';
+    }
     if (c.key === 'content') {
         c.width = 'auto';
         c.minWidth = '180px';
@@ -1044,7 +1193,7 @@ function renderWeekdayTable() {
             } else if (col.key === 'assignee_2') {
                 return `<td><input type="text" value="${escapeHtml(row.assignee_2 || '')}" title="${escapeHtml(row.assignee_2 || '')}" oninput="this.title=this.value" onmouseenter="this.title=this.value" onchange="updateWeekdayData(${originalIdx}, 'assignee_2', this.value)" ondblclick="openAssignmentHelper(${originalIdx}, 'assignee_2')" placeholder="더블클릭시 추천" style="border:none; background:transparent; cursor:pointer;"></td>`;
             } else if (col.key === 'interpreter') {
-                return `<td class="sl-col-interp" style="text-align:center;"><input type="checkbox" ${row.interpreter === 'Y' ? 'checked' : ''} onchange="updateWeekdayData(${originalIdx}, 'interpreter', this.checked ? 'Y' : 'N')"></td>`;
+                return `<td class="sl-col-weekday-interp" style="text-align:center;"><input type="checkbox" ${row.interpreter === 'Y' ? 'checked' : ''} onchange="updateWeekdayData(${originalIdx}, 'interpreter', this.checked ? 'Y' : 'N')"></td>`;
             } else if (col.key === 'action') {
                 return `<td style="text-align:center;">
                     <div class="action-btn-group">
@@ -1728,6 +1877,7 @@ async function saveNavLinks() {
         }
 
         alert('메뉴 설정이 저장되었습니다.');
+        broadcastChange('메뉴 링크');
         await loadNavLinks();
     } catch (e) {
         console.error(e);
@@ -2403,6 +2553,7 @@ async function processOutlinesBulk() {
         if (error) throw error;
 
         resultEl.innerHTML = `<span style="color:#00b894; font-weight:bold;">성공: ${parsed.length}개의 골자가 동기화되었습니다.</span>`;
+        broadcastChange('강연 골자');
         await loadOutlines();
         renderWeekendTable();
     } catch (e) {
@@ -2596,6 +2747,7 @@ async function saveAdminAccounts() {
         }
 
         alert('계정 정보가 성공적으로 저장되었습니다.');
+        broadcastChange('관리자 계정');
         await loadAdminAccounts();
     } catch (e) {
         console.error(e);
@@ -2603,6 +2755,8 @@ async function saveAdminAccounts() {
     }
 }
 let presenceChannel = null;
+const currentSessionId = 'sess_' + Math.random().toString(36).substring(2, 10) + Date.now().toString(36);
+let syncCountdownTimer = null;
 
 function initPresence() {
     if (!adminInfo || !adminInfo.name) return;
@@ -2619,13 +2773,17 @@ function initPresence() {
             updatePresenceUI(state);
         })
         .on('broadcast', { event: 'data_saved' }, ({ payload }) => {
-            showSyncToast(payload.adminName, payload.tabType);
+            if (!payload) return;
+            // 본인 세션에서 보낸 이벤트는 무시
+            if (payload.sessionId === currentSessionId) return;
+            triggerSyncAutoReload(payload.adminName || '다른 관리자', payload.tabType || '데이터');
         })
         .subscribe(async (status) => {
             if (status === 'SUBSCRIBED') {
                 await presenceChannel.track({
                     name: adminInfo.name,
                     online_at: new Date().toISOString(),
+                    sessionId: currentSessionId
                 });
             }
         });
@@ -2665,35 +2823,54 @@ function broadcastChange(tabType) {
             type: 'broadcast',
             event: 'data_saved',
             payload: {
-                adminName: adminInfo.name,
-                tabType: tabType
+                adminName: (adminInfo && adminInfo.name) ? adminInfo.name : '관리자',
+                tabType: tabType,
+                sessionId: currentSessionId
             }
         });
     }
 }
 
-function showSyncToast(adminName, tabType) {
-    const toast = document.getElementById('sync-toast');
-    const msg = document.getElementById('sync-toast-msg');
-    const btn = document.getElementById('btn-sync-now');
+function triggerSyncAutoReload(adminName, tabType) {
+    const modal = document.getElementById('sync-auto-reload-modal');
+    const msg = document.getElementById('sync-modal-msg');
+    const countdownEl = document.getElementById('sync-countdown-text');
+    const btnNow = document.getElementById('btn-sync-reload-now');
 
-    if (!toast || !msg || !btn) return;
+    if (!modal) {
+        alert(`[데이터 동기화 알림]\n\n'${adminName}' 관리자가 [${tabType}] 데이터를 저장했습니다.\n데이터 덮어쓰기 방지를 위해 최신 데이터로 새로고침합니다.`);
+        location.reload();
+        return;
+    }
 
-    msg.innerHTML = `방금 <b>${adminName}</b> 관리자가 <b>${tabType}</b>에서 저장했습니다.`;
-    toast.style.display = 'flex';
+    if (msg) {
+        msg.innerHTML = `<strong>${escapeHtml(adminName)}</strong> 관리자가 <strong>[${escapeHtml(tabType)}]</strong> 데이터를 저장했습니다.<br><span style="color:var(--danger); font-weight:700;">데이터 덮어쓰기(충돌)를 방지</span>하기 위해 최신 화면으로 자동 새로고침합니다.`;
+    }
 
-    btn.onclick = () => {
-        if (confirm('최신 데이터를 불러오시겠습니까? 현재까지 저장하지 않은 작업 내용은 소실됩니다.')) {
-            loadAllData();
-            toast.style.display = 'none';
+    modal.style.display = 'flex';
+
+    if (btnNow) {
+        btnNow.onclick = () => {
+            if (syncCountdownTimer) clearInterval(syncCountdownTimer);
+            location.reload();
+        };
+    }
+
+    let remainingSec = 2;
+    if (countdownEl) {
+        countdownEl.textContent = `${remainingSec}초 후 자동으로 새로고침됩니다...`;
+    }
+
+    if (syncCountdownTimer) clearInterval(syncCountdownTimer);
+    syncCountdownTimer = setInterval(() => {
+        remainingSec--;
+        if (remainingSec <= 0) {
+            clearInterval(syncCountdownTimer);
+            location.reload();
+        } else if (countdownEl) {
+            countdownEl.textContent = `${remainingSec}초 후 자동으로 새로고침됩니다...`;
         }
-    };
-
-    setTimeout(() => {
-        if (toast.style.display === 'flex') {
-            toast.style.display = 'none';
-        }
-    }, 10000);
+    }, 1000);
 }
 
 // ==========================================
@@ -2850,6 +3027,7 @@ async function savePublishers() {
         }
 
         alert('전도인 명단이 저장되었습니다.');
+        broadcastChange('전도인 관리');
         loadPublishers();
     } catch (e) {
         console.error(e);

@@ -745,7 +745,7 @@ body {
     margin-right: 2px;
 }
 
-.sl-col-check, .sl-col-interp, .sl-col-deaf, .sl-col-interp-grade {
+.sl-col-check, .sl-col-interp, .sl-col-weekday-interp, .sl-col-deaf, .sl-col-interp-grade {
     transition: all 0.2s ease;
 }
 

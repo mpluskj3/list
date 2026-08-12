@@ -838,7 +838,7 @@ CREATE TABLE IF NOT EXISTS public.app_settings (
 );
 ALTER TABLE public.app_settings DISABLE ROW LEVEL SECURITY;
 INSERT INTO public.app_settings (key, value) 
-VALUES ('congregation_name', '새로운 회중'), ('congregation_type', 'korean'), ('show_interp_tag', 'true'), ('show_sl_check', 'true')
+VALUES ('congregation_name', '새로운 회중'), ('congregation_type', 'korean'), ('show_interp_tag', 'true'), ('show_weekday_interp_check', 'true'), ('show_sl_check', 'true'), ('show_interp_column', 'true')
 ON CONFLICT (key) DO NOTHING;
 
 -- 9. database_connections
@@ -1170,7 +1170,9 @@ ALTER TABLE public.database_connections DISABLE ROW LEVEL SECURITY;`;
                     { key: 'congregation_name', value: '새로운 회중' },
                     { key: 'congregation_type', value: 'korean' },
                     { key: 'show_interp_tag', value: 'true' },
+                    { key: 'show_weekday_interp_check', value: 'true' },
                     { key: 'show_sl_check', value: 'true' },
+                    { key: 'show_interp_column', value: 'true' },
                     { key: 'font_viewer', value: 'Pretendard' }
                 ];
                 await client.from('app_settings').upsert(defaultSettings, { onConflict: 'key' });

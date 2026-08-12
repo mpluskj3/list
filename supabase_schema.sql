@@ -163,7 +163,9 @@ VALUES
     ('congregation_name', '춘천회중'),
     ('congregation_type', 'korean'),
     ('show_interp_tag', 'true'),
-    ('show_sl_check', 'true')
+    ('show_weekday_interp_check', 'true'),
+    ('show_sl_check', 'true'),
+    ('show_interp_column', 'true')
 ON CONFLICT (key) DO NOTHING;
 
 -- 9. Create database_connections table (웹 로그인용 DB 연결 매핑 테이블)
