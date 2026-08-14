@@ -667,6 +667,7 @@ async function loadAppSettings() {
     weekendCols.forEach(c => {
         if (c.key === 'is_confirmed') c.className = 'sl-col-check';
         if (c.key === 'interpreter_name') c.className = 'sl-col-interp';
+        if (c.key === 'bible_reader') c.className = 'kr-col-reader';
     });
 
     const typeSelect = document.getElementById('congregation-type-select');
@@ -755,6 +756,12 @@ function applyCongregationModeUI() {
     const interpColElements = document.querySelectorAll('.sl-col-interp');
     interpColElements.forEach(el => {
         el.style.display = (isSL && showInterpColumn) ? '' : 'none';
+    });
+
+    // 6. 주말집회 낭독자 컬럼 (한국어 회중 전용)
+    const readerColElements = document.querySelectorAll('.kr-col-reader');
+    readerColElements.forEach(el => {
+        el.style.display = isSL ? 'none' : '';
     });
 }
 
@@ -971,7 +978,7 @@ const defaultWeekendCols = [
     { key: 'chairman', label: '사회', width: '72px', isCore: true, align: 'center' },
     { key: 'interpreter_name', label: '수어통역', width: '72px', isCore: true, className: 'sl-col-interp', align: 'center' },
     { key: 'reader', label: '파수대', width: '72px', isCore: true, align: 'center' },
-    { key: 'bible_reader', label: '낭독', width: '72px', isCore: true, align: 'center' },
+    { key: 'bible_reader', label: '낭독', width: '72px', isCore: true, className: 'kr-col-reader', align: 'center' },
     { key: 'prayer', label: '기도', width: '72px', isCore: true, align: 'center' },
     { key: 'action', label: '관리', width: '130px', isCore: true, isAction: true, align: 'center' }
 ];
@@ -2215,7 +2222,7 @@ function renderWeekendTable() {
             } else if (col.key === 'reader') {
                 return `<td><input type="text" data-idx="${idx}" data-field="reader" value="${row.reader || ''}" title="${escapeHtml(row.reader || '')}" oninput="this.title=this.value" onmouseenter="this.title=this.value" onchange="updateWeekendData(${idx}, 'reader', this.value)" style="border:none; background:transparent;"></td>`;
             } else if (col.key === 'bible_reader') {
-                return `<td><input type="text" data-idx="${idx}" data-field="bible_reader" value="${row.bible_reader || ''}" title="${escapeHtml(row.bible_reader || '')}" oninput="this.title=this.value" onmouseenter="this.title=this.value" onchange="updateWeekendData(${idx}, 'bible_reader', this.value)" style="border:none; background:transparent;"></td>`;
+                return `<td class="kr-col-reader"><input type="text" data-idx="${idx}" data-field="bible_reader" value="${row.bible_reader || ''}" title="${escapeHtml(row.bible_reader || '')}" oninput="this.title=this.value" onmouseenter="this.title=this.value" onchange="updateWeekendData(${idx}, 'bible_reader', this.value)" style="border:none; background:transparent;"></td>`;
             } else if (col.key === 'prayer') {
                 return `<td><input type="text" data-idx="${idx}" data-field="prayer" value="${row.prayer || ''}" title="${escapeHtml(row.prayer || '')}" oninput="this.title=this.value" onmouseenter="this.title=this.value" onchange="updateWeekendData(${idx}, 'prayer', this.value)" style="border:none; background:transparent;"></td>`;
             } else if (col.key === 'action') {

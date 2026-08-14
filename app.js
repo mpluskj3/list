@@ -120,10 +120,13 @@ async function setupNavigationButtons() {
         if (!settingsErr && settingsData) {
             const congName = settingsData.find(s => s.key === 'congregation_name')?.value || localStorage.getItem('congregationName') || '집회 계획표';
             const fontViewer = settingsData.find(s => s.key === 'font_viewer')?.value || localStorage.getItem('fontViewer') || 'Pretendard';
+            const congType = settingsData.find(s => s.key === 'congregation_type')?.value || localStorage.getItem('CONGREGATION_TYPE') || 'korean';
 
             window.appState.congregationName = congName;
+            window.appState.congregationType = congType;
             localStorage.setItem('congregationName', congName);
             localStorage.setItem('fontViewer', fontViewer);
+            localStorage.setItem('CONGREGATION_TYPE', congType);
             document.title = congName + " 집회계획표";
 
             // Apply Viewer Font
@@ -483,6 +486,14 @@ function renderSchedules() {
             </div>
         ` : '';
 
+        const isSL = (window.appState.congregationType || localStorage.getItem('CONGREGATION_TYPE')) === 'sign_language';
+        const readerRowHtml = !isSL ? `
+            <div class="weekend-summary-row">
+                <div class="weekend-summary-label">낭독</div>
+                <div class="weekend-summary-value">${formatAssignee(w.bible_reader)}</div>
+            </div>
+        ` : '';
+
         html += `
         <div class="weekend-summary-box">
             <div class="weekend-summary-head">${dateStr} 주말 집회 계획표 ${w.is_confirmed ? '<span class="badge-interp">SL확정</span>' : ''}</div>
@@ -511,10 +522,7 @@ function renderSchedules() {
                 <div class="weekend-summary-value">${formatAssignee(w.reader)}</div>
             </div>
 
-            <div class="weekend-summary-row">
-                <div class="weekend-summary-label">낭독</div>
-                <div class="weekend-summary-value">${formatAssignee(w.bible_reader)}</div>
-            </div>
+            ${readerRowHtml}
             
             <div class="weekend-summary-row thick-border">
                 <div class="weekend-summary-label">마치는 기도</div>
@@ -558,7 +566,7 @@ function renderWeekendSchedulesTable() {
                 <th style="width:90px; text-align:center;">사회</th>
                 <th style="width:90px; text-align:center;" class="sl-col-interp">통역</th>
                 <th style="width:90px; text-align:center;">파수대</th>
-                <th style="width:90px; text-align:center;">낭독</th>
+                <th style="width:90px; text-align:center;" class="kr-col-reader">낭독</th>
                 <th style="width:90px; text-align:center;">기도</th>
             </tr>
         </thead>
@@ -607,7 +615,7 @@ function renderWeekendSchedulesTable() {
                 <td style="text-align:center; ${commonCellStyle}">${formatAssignee(r.chairman)}</td>
                 <td style="text-align:center; ${commonCellStyle}" class="sl-col-interp">${formatAssignee(r.interpreter_name)}</td>
                 <td style="text-align:center; ${commonCellStyle}">${formatAssignee(r.reader)}</td>
-                <td style="text-align:center; ${commonCellStyle}">${formatAssignee(r.bible_reader)}</td>
+                <td style="text-align:center; ${commonCellStyle}" class="kr-col-reader">${formatAssignee(r.bible_reader)}</td>
                 <td style="text-align:center; ${commonCellStyle}">${formatAssignee(r.prayer)}</td>
             </tr>
         `;
@@ -616,9 +624,12 @@ function renderWeekendSchedulesTable() {
     html += `</tbody></table></div>`;
     content.innerHTML = html;
 
-    const isSL = localStorage.getItem('CONGREGATION_TYPE') === 'sign_language' || localStorage.getItem('SHOW_INTERP_COLUMN') !== 'false';
+    const isSL = (window.appState.congregationType || localStorage.getItem('CONGREGATION_TYPE')) === 'sign_language';
     document.querySelectorAll('.sl-col-interp').forEach(el => {
         el.style.display = isSL ? '' : 'none';
+    });
+    document.querySelectorAll('.kr-col-reader').forEach(el => {
+        el.style.display = isSL ? 'none' : '';
     });
 }
 
